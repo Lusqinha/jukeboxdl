@@ -118,6 +118,21 @@ describe("DownloadQueue", () => {
     expect(queue.jobs.map((j) => j.status)).toEqual(["canceled", "canceled"]);
   });
 
+  it("tenta de novo trabalhos que falharam", async () => {
+    let attempts = 0;
+    const queue = new DownloadQueue(async (req) => {
+      attempts++;
+      if (attempts === 1) throw new Error("rede caiu");
+      return done(req.video.id);
+    });
+    const [job] = queue.add([request("a")]);
+    await queue.onIdle();
+    expect(queue.jobs[0]?.status).toBe("failed");
+    queue.retry(job?.id ?? "");
+    await queue.onIdle();
+    expect(queue.jobs[0]).toMatchObject({ status: "done", error: undefined });
+  });
+
   it("limpa finalizados e resolve onIdle imediatamente quando vazia", async () => {
     const queue = new DownloadQueue(async (req) => done(req.video.id));
     await queue.onIdle();

@@ -110,6 +110,21 @@ export class DownloadQueue extends EventEmitter<QueueEvents> {
     for (const controller of this.running.values()) controller.abort();
   }
 
+  /** Recoloca na fila um trabalho que falhou ou foi cancelado. */
+  retry(id: string): void {
+    const job = this.jobsById.get(id);
+    if (!job || (job.status !== "failed" && job.status !== "canceled")) return;
+    this.update(id, {
+      status: "queued",
+      progress: 0,
+      error: undefined,
+      speed: undefined,
+      eta: undefined,
+    });
+    this.pending.push(id);
+    this.pump();
+  }
+
   /** Remove da lista os trabalhos já finalizados. */
   clearFinished(): void {
     for (const job of this.jobsById.values()) {

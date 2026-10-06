@@ -36,12 +36,31 @@ export class Jukebox {
   readonly queue: DownloadQueue;
 
   private constructor(
-    readonly config: Config,
+    private currentConfig: Config,
     readonly ytdlp: YtDlp,
     private readonly ffmpeg: string,
     readonly history: History,
   ) {
-    this.queue = new DownloadQueue(this.worker, config.concurrency);
+    this.queue = new DownloadQueue(this.worker, currentConfig.concurrency);
+  }
+
+  get config(): Config {
+    return this.currentConfig;
+  }
+
+  /**
+   * Aplica uma nova config às próximas faixas (pasta, templates, áudio, concorrência).
+   * Mudanças nos caminhos dos binários só valem ao reabrir o app.
+   */
+  setConfig(config: Config): void {
+    this.currentConfig = config;
+    this.queue.setConcurrency(config.concurrency);
+  }
+
+  /** Se o vídeo já foi baixado e o arquivo ainda existe. */
+  async isDownloaded(videoId: string): Promise<boolean> {
+    const entry = this.history.find(videoId);
+    return entry !== undefined && (await pathExists(entry.path));
   }
 
   static async create(options: JukeboxOptions = {}): Promise<Jukebox> {
@@ -92,7 +111,7 @@ export class Jukebox {
   }
 
   private readonly worker: JobWorker = async (request: TrackRequest, { signal, onProgress }) => {
-    if (this.config.skipDuplicates) {
+    if (this.currentConfig.skipDuplicates) {
       const previous = this.history.find(request.video.id);
       if (previous && (await pathExists(previous.path))) {
         return { kind: "skipped", reason: "history", path: previous.path };
@@ -102,7 +121,7 @@ export class Jukebox {
     const result = await downloadTrack(request, {
       ytdlp: this.ytdlp,
       ffmpeg: this.ffmpeg,
-      config: this.config,
+      config: this.currentConfig,
       signal,
       onProgress,
     });

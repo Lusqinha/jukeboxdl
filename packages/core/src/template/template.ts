@@ -178,3 +178,16 @@ export function renderTemplate(
   const base = truncateBytes(filename, maxSegmentBytes - Buffer.byteLength(suffix));
   return [...directories, `${base}${suffix}`].join("/");
 }
+
+/** Faixa fictícia usada para pré-visualizar templates. */
+export const SAMPLE_TRACK = {
+  id: "abc123xyz00",
+  title: "Nome da Música",
+  artist: "Artista",
+  album: "Álbum",
+  track: 3,
+  year: 2024,
+  playlist: "Minha Playlist",
+  index: 7,
+  uploader: "Canal",
+} as const satisfies TemplateValues;
