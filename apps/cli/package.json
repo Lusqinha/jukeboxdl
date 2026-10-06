@@ -1,0 +1,30 @@
+{
+  "name": "jukeboxdl",
+  "version": "0.1.0",
+  "description": "Baixe músicas do YouTube como MP3 pelo terminal",
+  "type": "module",
+  "bin": {
+    "jukeboxdl": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx src/index.tsx",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jukeboxdl/core": "workspace:*",
+    "commander": "^15.0.0",
+    "ink": "^8.0.0",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "ink-testing-library": "^4.0.0"
+  }
+}
