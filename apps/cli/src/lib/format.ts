@@ -41,3 +41,11 @@ export function videoIdFromUrl(url: string): string | undefined {
     return undefined;
   }
 }
+
+/**
+ * Remove seletores de variação e joiners de emoji, que fazem terminal e Ink discordarem
+ * da largura do texto e desalinham as colunas.
+ */
+export function displayText(text: string): string {
+  return text.replace(/[\uFE0E\uFE0F\u200D]/g, "");
+}

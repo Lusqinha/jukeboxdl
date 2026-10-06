@@ -2,26 +2,30 @@ import type { HistoryEntry, Jukebox } from "@jukeboxdl/core";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
 import { TextInput } from "../components/TextInput";
+import { displayText } from "../lib/format";
 import { KeyHints } from "./KeyHints";
-import { useCursor } from "./list";
+import { ScrollHint, useCursor } from "./list";
+import { SELECTION_BG } from "./theme";
 
 export function HistoryScreen({
   jukebox,
   active,
   height,
   refreshKey,
+  onCaptureChange,
 }: {
   jukebox: Jukebox;
   active: boolean;
   height: number;
   /** Muda quando um download termina, para recarregar a lista. */
   refreshKey: number;
+  onCaptureChange: (capturing: boolean) => void;
 }) {
   const [filter, setFilter] = useState("");
   const [filtering, setFiltering] = useState(false);
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [version, setVersion] = useState(0);
-  const pageSize = Math.max(3, height - 5);
+  const pageSize = Math.max(3, height - 7);
   const cursor = useCursor(entries.length, pageSize);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey e version só disparam a recarga
@@ -29,6 +33,10 @@ export function HistoryScreen({
     if (!active) return;
     setEntries(jukebox.history.list({ limit: 500, ...(filter && { search: filter }) }));
   }, [jukebox, filter, active, refreshKey, version]);
+
+  useEffect(() => {
+    onCaptureChange(filtering);
+  }, [filtering, onCaptureChange]);
 
   useInput(
     (input, key) => {
@@ -64,6 +72,12 @@ export function HistoryScreen({
         {entries.length === 0 && (
           <Text dimColor> {filter ? "Nada encontrado." : "Nenhuma faixa baixada ainda."}</Text>
         )}
+        <ScrollHint
+          start={cursor.start}
+          pageSize={pageSize}
+          length={entries.length}
+          position="above"
+        />
         {entries.slice(cursor.start, cursor.start + pageSize).map((entry, i) => {
           const isSelected = !filtering && cursor.start + i === cursor.index;
           const date = new Date(entry.downloadedAt).toLocaleString("pt-BR", {
@@ -71,12 +85,15 @@ export function HistoryScreen({
             timeStyle: "short",
           });
           return (
-            <Box key={`${entry.videoId}-${entry.downloadedAt}`}>
+            <Box
+              key={`${entry.videoId}-${entry.downloadedAt}`}
+              {...(isSelected && { backgroundColor: SELECTION_BG })}
+            >
               <Text color="cyan">{isSelected ? "❯ " : "  "}</Text>
               <Text dimColor>{date} </Text>
               <Box flexGrow={1} flexShrink={1}>
                 <Text wrap="truncate-end" bold={isSelected}>
-                  {entry.artist ? `${entry.artist} - ${entry.title}` : entry.title}
+                  {displayText(entry.artist ? `${entry.artist} - ${entry.title}` : entry.title)}
                 </Text>
               </Box>
               {entry.playlist && (
@@ -89,6 +106,12 @@ export function HistoryScreen({
             </Box>
           );
         })}
+        <ScrollHint
+          start={cursor.start}
+          pageSize={pageSize}
+          length={entries.length}
+          position="below"
+        />
       </Box>
       <Text dimColor wrap="truncate-start">
         {"  "}

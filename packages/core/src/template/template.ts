@@ -16,7 +16,7 @@ export const TEMPLATE_VARIABLES = {
 
 export type TemplateVariable = keyof typeof TEMPLATE_VARIABLES;
 
-export type TemplateValues = Partial<Record<TemplateVariable, string | number>>;
+export type TemplateValues = Partial<Record<TemplateVariable, string | number | undefined>>;
 
 export type TemplateToken =
   | { type: "text"; value: string }

@@ -2,7 +2,8 @@ import { expandHome, type Job, type Jukebox } from "@jukeboxdl/core";
 import { Box, Text, useInput } from "ink";
 import { JobRow } from "../components/JobRow";
 import { KeyHints } from "./KeyHints";
-import { useCursor } from "./list";
+import { ScrollHint, useCursor } from "./list";
+import { SELECTION_BG } from "./theme";
 
 export function DownloadsScreen({
   jukebox,
@@ -15,7 +16,7 @@ export function DownloadsScreen({
   active: boolean;
   height: number;
 }) {
-  const pageSize = Math.max(3, height - 2);
+  const pageSize = Math.max(3, height - 4);
   const cursor = useCursor(jobs.length, pageSize);
   const selected = jobs[cursor.index];
 
@@ -42,14 +43,26 @@ export function DownloadsScreen({
         </Box>
       ) : (
         <Box flexDirection="column" flexGrow={1}>
-          {jobs.slice(cursor.start, cursor.start + pageSize).map((job, i) => (
-            <JobRow
-              key={job.id}
-              job={job}
-              selected={cursor.start + i === cursor.index}
-              outputDir={outputDir}
-            />
-          ))}
+          <ScrollHint
+            start={cursor.start}
+            pageSize={pageSize}
+            length={jobs.length}
+            position="above"
+          />
+          {jobs.slice(cursor.start, cursor.start + pageSize).map((job, i) => {
+            const selected = cursor.start + i === cursor.index;
+            return (
+              <Box key={job.id} {...(selected && { backgroundColor: SELECTION_BG })}>
+                <JobRow job={job} selected={selected} outputDir={outputDir} />
+              </Box>
+            );
+          })}
+          <ScrollHint
+            start={cursor.start}
+            pageSize={pageSize}
+            length={jobs.length}
+            position="below"
+          />
         </Box>
       )}
       <Box marginTop={1}>

@@ -26,7 +26,9 @@ jukeboxdl
 | **Histórico** | `/` filtrar · `d` remover do histórico |
 | **Config** | `enter` editar/alternar · preview ao vivo do template de nome |
 
-`tab`/`shift+tab` trocam de aba; `ctrl+c` sai (pede confirmação se houver downloads em andamento). Faixas já baixadas aparecem com ✓ nos resultados. Em links `watch?v=…&list=…`, só o vídeo vem marcado; `a` marca a playlist inteira.
+Ao abrir, uma tela de boot animada mostra as etapas do carregamento (qualquer tecla pula a animação quando termina).
+
+`tab`/`shift+tab` ou `1`–`4` trocam de aba (os números valem fora de campos de texto); `esc` volta para Buscar; nas listas, as setas dão a volta nas pontas e `page up`/`page down` pulam uma página; `ctrl+c` sai (pede confirmação se houver downloads em andamento). Faixas já baixadas aparecem com ✓ nos resultados. Em links `watch?v=…&list=…`, só o vídeo vem marcado; `a` marca a playlist inteira.
 
 ### Linha de comando
 

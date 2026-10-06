@@ -20,7 +20,12 @@ async function tuiCommand(): Promise<void> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     program.help();
   }
-  const app = render(<App />, { alternateScreen: true, exitOnCtrlC: false });
+  const app = render(<App />, {
+    alternateScreen: true,
+    exitOnCtrlC: false,
+    maxFps: 60,
+    incrementalRendering: true,
+  });
   await app.waitUntilExit();
 }
 

@@ -1,11 +1,12 @@
 import type { Jukebox, PlaylistItem, VideoSummary } from "@jukeboxdl/core";
 import { Box, Text, useInput } from "ink";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Spinner } from "../components/Spinner";
 import { TextInput } from "../components/TextInput";
-import { formatDuration, isUrl, videoIdFromUrl } from "../lib/format";
+import { displayText, formatDuration, isUrl, videoIdFromUrl } from "../lib/format";
 import { KeyHints } from "./KeyHints";
-import { useCursor } from "./list";
+import { ScrollHint, useCursor } from "./list";
+import { SELECTION_BG } from "./theme";
 
 type Results =
   | { kind: "search"; query: string; items: VideoSummary[] }
@@ -16,11 +17,13 @@ export function SearchScreen({
   active,
   height,
   onFlash,
+  onCaptureChange,
 }: {
   jukebox: Jukebox;
   active: boolean;
   height: number;
   onFlash: (message: string) => void;
+  onCaptureChange: (capturing: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
   const [focus, setFocus] = useState<"input" | "list">("input");
@@ -33,12 +36,23 @@ export function SearchScreen({
   const pending = useRef<string | null>(null);
 
   const items: VideoSummary[] = results?.items ?? [];
-  const pageSize = Math.max(3, height - 5);
+  // Campo de busca (3) + cabeçalho (1) + indicadores de rolagem (2) + atalhos (2).
+  const pageSize = Math.max(3, height - 7);
   const cursor = useCursor(items.length, pageSize);
+  const lastQuery = useRef<string | null>(null);
+
+  useEffect(() => {
+    onCaptureChange(focus === "input");
+  }, [focus, onCaptureChange]);
 
   const submit = async (value: string) => {
     const text = value.trim();
     if (!text || pending.current === text) return;
+    // Mesma busca já exibida: só desce para os resultados.
+    if (text === lastQuery.current && items.length > 0) {
+      setFocus("list");
+      return;
+    }
     pending.current = text;
     abort.current?.abort();
     const controller = new AbortController();
@@ -76,6 +90,7 @@ export function SearchScreen({
         };
       }
       if (controller.signal.aborted) return;
+      lastQuery.current = text;
       setResults(next);
       setMarked(initialMarks);
       cursor.setIndex(0);
@@ -133,8 +148,16 @@ export function SearchScreen({
         setMarked((m) => (m.size === items.length ? new Set() : new Set(items.map((i) => i.id))));
         return;
       }
-      // Qualquer outra letra volta para a busca e começa a digitar.
-      if (input && !key.ctrl && !key.meta && !key.tab && input.length === 1 && input >= " ") {
+      // Qualquer outra letra volta para a busca e começa a digitar (números trocam de aba).
+      if (
+        input &&
+        !key.ctrl &&
+        !key.meta &&
+        !key.tab &&
+        input.length === 1 &&
+        input >= " " &&
+        !/[1-4]/.test(input)
+      ) {
         setQuery(input);
         setFocus("input");
       }
@@ -183,25 +206,31 @@ export function SearchScreen({
               </Text>
             )}
           </Text>
+          <ScrollHint
+            start={cursor.start}
+            pageSize={pageSize}
+            length={items.length}
+            position="above"
+          />
           {visible.map((item, i) => {
             const index = cursor.start + i;
             const selected = focus === "list" && index === cursor.index;
             const isMarked = marked.has(item.id);
             return (
-              <Box key={item.id}>
+              <Box key={item.id} {...(selected && { backgroundColor: SELECTION_BG })}>
                 <Text color="cyan">{selected ? "❯ " : "  "}</Text>
                 <Text color={isMarked ? "cyan" : "gray"}>{isMarked ? "◉ " : "○ "}</Text>
                 {"index" in item && <Text dimColor>{String(item.index).padStart(3)} </Text>}
                 <Box flexGrow={1} flexShrink={1}>
                   <Text wrap="truncate-end" bold={selected}>
-                    {item.title}
+                    {displayText(item.title)}
                   </Text>
                 </Box>
                 <Box flexShrink={0} marginLeft={2}>
                   {downloaded.has(item.id) && <Text color="green">✓ </Text>}
                   <Box width={22} justifyContent="flex-end">
                     <Text dimColor wrap="truncate-end">
-                      {item.channel ?? ""}
+                      {displayText(item.channel ?? "")}
                     </Text>
                   </Box>
                   <Box width={8} justifyContent="flex-end">
@@ -211,6 +240,12 @@ export function SearchScreen({
               </Box>
             );
           })}
+          <ScrollHint
+            start={cursor.start}
+            pageSize={pageSize}
+            length={items.length}
+            position="below"
+          />
         </Box>
       )}
 

@@ -17,6 +17,7 @@ import { useState } from "react";
 import { TextInput } from "../components/TextInput";
 import { KeyHints } from "./KeyHints";
 import { useCursor } from "./list";
+import { SELECTION_BG } from "./theme";
 
 function TemplatePreview({ template }: { template: string }) {
   const issues = validateTemplate(template);
@@ -112,7 +113,7 @@ export function ConfigScreen({
           const isEditing = editing === f.key;
           return (
             <Box key={f.key} flexDirection="column">
-              <Box>
+              <Box {...(selected && { backgroundColor: SELECTION_BG })}>
                 <Text color="cyan">{selected ? "❯ " : "  "}</Text>
                 <Box width={labelWidth} flexShrink={0}>
                   <Text bold={selected}>{f.label}</Text>
@@ -128,13 +129,9 @@ export function ConfigScreen({
                   />
                 ) : (
                   <Text
-                    color={
-                      f.type === "boolean"
-                        ? getConfigValue(config, f.key)
-                          ? "green"
-                          : "gray"
-                        : undefined
-                    }
+                    {...(f.type === "boolean" && {
+                      color: getConfigValue(config, f.key) ? "green" : "gray",
+                    })}
                     wrap="truncate-end"
                   >
                     {formatConfigValue(getConfigValue(config, f.key))}

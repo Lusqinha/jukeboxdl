@@ -1,6 +1,6 @@
 import type { Job } from "@jukeboxdl/core";
-import { Box, Text } from "ink";
-import { formatBytes, formatDuration } from "../lib/format";
+import { Box, Text, useWindowSize } from "ink";
+import { displayText, formatBytes, formatDuration } from "../lib/format";
 import { ProgressBar } from "./ProgressBar";
 import { Spinner } from "./Spinner";
 
@@ -30,10 +30,11 @@ export function JobRow({
         {job.request.index !== undefined && (
           <Text dimColor>{String(job.request.index).padStart(3)} </Text>
         )}
-        {jobTitle(job)}
+        {displayText(jobTitle(job))}
       </Text>
     </Box>
   );
+  const { columns } = useWindowSize();
   const pointer = (
     <Box width={2} flexShrink={0}>
       <Text color="cyan">{selected ? "❯" : " "}</Text>
@@ -106,7 +107,7 @@ export function JobRow({
         {icon}
       </Box>
       {title}
-      <Box marginLeft={2} flexShrink={0} maxWidth="55%">
+      <Box marginLeft={2} flexShrink={0} maxWidth={Math.max(20, Math.floor(columns * 0.55))}>
         {detail}
       </Box>
     </Box>
