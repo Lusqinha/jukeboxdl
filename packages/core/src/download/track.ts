@@ -1,11 +1,14 @@
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import type { Config } from "../config/schema";
+import { basename, dirname, join } from "node:path";
+import type { AudioFormat, Config } from "../config/schema";
 import { moveFile, pathExists } from "../fs";
 import type { TrackMetadata } from "../metadata";
+import { enrichFromMusicBrainz } from "../metadata/musicbrainz";
 import { expandHome } from "../paths";
-import { metadataFromInfo } from "../tags/extract";
+import { type PreparedCover, prepareCover } from "../tags/cover";
+import { cleanTitle, metadataFromInfo, splitArtistTitle } from "../tags/extract";
+import { measureLoudness, r128TrackGain, replayGainTags } from "../tags/loudness";
 import { writeTags } from "../tags/write";
 import { renderTemplate } from "../template/template";
 import type { YtDlp } from "../ytdlp/client";
@@ -16,68 +19,165 @@ export interface TrackRequest {
   /** Preenchido quando a faixa vem de uma playlist; ativa o `playlistTemplate`. */
   playlist?: string | undefined;
   index?: number | undefined;
+  /** Divide o vídeo em uma faixa por capítulo (mixes, álbuns completos). */
+  splitChapters?: boolean | undefined;
+  /** Baixa de novo mesmo que esteja no histórico, sobrescrevendo o arquivo. */
+  redownload?: boolean | undefined;
 }
 
 export interface TrackResult {
-  /** `exists`: o arquivo de destino já existia e não foi sobrescrito. */
+  /** `exists`: o arquivo de destino já existia e nada foi baixado. */
   status: "downloaded" | "exists";
+  /** Primeiro arquivo gerado (o único, quando não há divisão por capítulos). */
   path: string;
+  paths: string[];
   metadata: TrackMetadata;
 }
+
+export type TrackConfig = Pick<
+  Config,
+  "outputDir" | "filenameTemplate" | "playlistTemplate" | "audio" | "musicbrainz"
+>;
 
 export interface DownloadTrackOptions {
   ytdlp: YtDlp;
   ffmpeg: string;
-  config: Pick<Config, "outputDir" | "filenameTemplate" | "playlistTemplate" | "audio">;
-  overwrite?: boolean;
+  config: TrackConfig;
   signal?: AbortSignal | undefined;
   onProgress?: ((progress: DownloadProgress) => void) | undefined;
+  /** Para testes: substitui o fetch usado pelo MusicBrainz. */
+  fetch?: typeof fetch;
 }
 
 export function destinationFor(
   metadata: TrackMetadata,
-  config: DownloadTrackOptions["config"],
+  config: Pick<TrackConfig, "outputDir" | "filenameTemplate" | "playlistTemplate">,
   fromPlaylist: boolean,
+  extension: AudioFormat = "mp3",
 ): string {
   const template = fromPlaylist ? config.playlistTemplate : config.filenameTemplate;
-  return join(expandHome(config.outputDir), renderTemplate(template, metadata));
+  return join(expandHome(config.outputDir), renderTemplate(template, metadata, { extension }));
 }
 
-/** Baixa, converte, grava as tags e move a faixa para o destino definido pelo template. */
+/** Metadados de um capítulo: o vídeo vira o "álbum" e o capítulo, a faixa. */
+export function chapterMetadata(
+  video: TrackMetadata,
+  chapterTitle: string,
+  number: number,
+): TrackMetadata {
+  const cleaned = cleanTitle(chapterTitle.replace(/^\s*\d+[.)\-\s]+/, "")) || chapterTitle;
+  const split = splitArtistTitle(cleaned);
+  return {
+    id: video.id,
+    title: split?.title ?? cleaned,
+    artist: split?.artist ?? video.artist,
+    album: video.title,
+    track: number,
+    year: video.year,
+    playlist: video.title,
+    index: number,
+    uploader: video.uploader,
+  };
+}
+
+/** Faixas do YouTube Music (com campos de música) trazem a capa quadrada no meio do quadro. */
+const isMusicTrack = (info: YtDlpInfo) => Boolean(info.track || info.artists?.length || info.album);
+
+async function finalize(
+  input: string,
+  destination: string,
+  metadata: TrackMetadata,
+  cover: PreparedCover | undefined,
+  { ffmpeg, config, signal }: DownloadTrackOptions,
+  workdir: string,
+): Promise<void> {
+  const format = config.audio.format;
+  let extraTags: Record<string, string> | undefined;
+  if (config.audio.replayGain) {
+    const loudness = await measureLoudness(ffmpeg, input, signal);
+    if (loudness) {
+      extraTags = replayGainTags(loudness);
+      if (format === "opus") extraTags.R128_TRACK_GAIN = r128TrackGain(loudness);
+    }
+  }
+  const tagged = join(workdir, `tagged-${basename(input)}`);
+  await writeTags({
+    ffmpeg,
+    input,
+    output: tagged,
+    format,
+    metadata,
+    cover,
+    extraTags,
+    workdir,
+    signal,
+  });
+  await mkdir(dirname(destination), { recursive: true });
+  await moveFile(tagged, destination);
+}
+
+/**
+ * Lê os metadados, decide o destino (pulando se o arquivo já existe, sem baixar), baixa,
+ * mede o volume, grava tags e capa e move para a pasta final.
+ */
 export async function downloadTrack(
   request: TrackRequest,
-  { ytdlp, ffmpeg, config, overwrite = false, signal, onProgress }: DownloadTrackOptions,
+  options: DownloadTrackOptions,
 ): Promise<TrackResult> {
+  const { ytdlp, ffmpeg, config, signal, onProgress } = options;
+  const format = config.audio.format;
   const workdir = await mkdtemp(join(tmpdir(), "jukeboxdl-"));
   try {
-    const files = await ytdlp.downloadAudio(request.video.url, workdir, {
+    const info = await ytdlp.fetchInfo(request.video.url, signal);
+    let metadata = metadataFromInfo(info, { playlist: request.playlist, index: request.index });
+    if (config.musicbrainz) {
+      metadata = await enrichFromMusicBrainz(metadata, {
+        signal,
+        ...(options.fetch && { fetch: options.fetch }),
+      });
+    }
+
+    const chapters = (info.chapters ?? []).filter((chapter) => chapter.title);
+    const split = Boolean(request.splitChapters) && chapters.length > 1;
+    const destination = destinationFor(metadata, config, request.playlist !== undefined, format);
+    if (!split && !request.redownload && (await pathExists(destination))) {
+      return { status: "exists", path: destination, paths: [destination], metadata };
+    }
+
+    const infoFile = join(workdir, "video.info.json");
+    await writeFile(infoFile, JSON.stringify(info));
+    const files = await ytdlp.downloadAudio(infoFile, workdir, {
+      format,
       bitrate: config.audio.bitrate,
+      removeNonMusic: config.audio.removeNonMusic,
+      splitChapters: split,
       signal,
       onProgress,
     });
 
-    const info = JSON.parse(await readFile(files.info, "utf8")) as YtDlpInfo;
-    const metadata = metadataFromInfo(info, { playlist: request.playlist, index: request.index });
-    const destination = destinationFor(metadata, config, request.playlist !== undefined);
+    onProgress?.({ phase: "tag" });
+    const cover =
+      config.audio.embedCover && files.cover
+        ? await prepareCover(ffmpeg, files.cover, workdir, { square: isMusicTrack(info), signal })
+        : undefined;
 
-    if (!overwrite && (await pathExists(destination))) {
-      return { status: "exists", path: destination, metadata };
+    if (!split || files.chapters.length === 0) {
+      await finalize(files.audio, destination, metadata, cover, options, workdir);
+      return { status: "downloaded", path: destination, paths: [destination], metadata };
     }
 
-    onProgress?.({ phase: "tag" });
-    const tagged = join(workdir, "tagged.mp3");
-    await writeTags({
-      ffmpeg,
-      input: files.audio,
-      output: tagged,
-      metadata,
-      cover: config.audio.embedCover ? files.cover : undefined,
-      signal,
-    });
-
-    await mkdir(dirname(destination), { recursive: true });
-    await moveFile(tagged, destination);
-    return { status: "downloaded", path: destination, metadata };
+    const paths: string[] = [];
+    for (const [i, file] of files.chapters.entries()) {
+      const chapter = chapterMetadata(metadata, chapters[i]?.title ?? `${i + 1}`, i + 1);
+      const target = destinationFor(chapter, config, true, format);
+      if (!request.redownload && (await pathExists(target))) {
+        paths.push(target);
+        continue;
+      }
+      await finalize(file, target, chapter, cover, options, workdir);
+      paths.push(target);
+    }
+    return { status: "downloaded", path: paths[0] ?? destination, paths, metadata };
   } finally {
     await rm(workdir, { recursive: true, force: true });
   }

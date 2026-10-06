@@ -1,16 +1,17 @@
 import { join } from "node:path";
 import { detectBinary } from "./binaries/detect";
 import type { BinaryName } from "./binaries/platform";
+import { which } from "./binaries/which";
 import type { Config } from "./config/schema";
 import { loadConfig } from "./config/store";
-import { DownloadQueue, type Job, type JobWorker } from "./download/queue";
+import { DownloadQueue, FINISHED_STATUSES, type Job, type JobWorker } from "./download/queue";
 import { downloadTrack, type TrackRequest } from "./download/track";
 import { BinaryError } from "./errors";
 import { pathExists } from "./fs";
 import { History } from "./history/history";
 import { t } from "./i18n/messages";
 import { type AppPaths, getAppPaths } from "./paths";
-import { YtDlp } from "./ytdlp/client";
+import { type JsRuntime, YtDlp } from "./ytdlp/client";
 import type { PlaylistItem, ResolveResult, VideoSummary } from "./ytdlp/types";
 
 export interface JukeboxOptions {
@@ -19,7 +20,24 @@ export interface JukeboxOptions {
   /** Caminho do banco do histórico; `:memory:` para não persistir. */
   historyFile?: string;
   /** Repassado ao cliente do yt-dlp (veja `YtDlpOptions.jsRuntime`). */
-  jsRuntime?: string | null;
+  jsRuntime?: JsRuntime | null;
+  /** Guarda a fila no histórico para retomar downloads ao reabrir (usado pela interface). */
+  persistQueue?: boolean;
+  /** Novas tentativas para erros temporários de rede. */
+  retries?: number;
+}
+
+/**
+ * Runtime JS para o yt-dlp. Rodando no Node, é o próprio Node; num binário compilado com
+ * Bun, procura node, deno ou bun no PATH.
+ */
+async function defaultJsRuntime(): Promise<JsRuntime | null> {
+  if (!process.versions.bun) return { name: "node", path: process.execPath };
+  for (const name of ["node", "deno", "bun"] as const) {
+    const path = await which(name);
+    if (path) return { name, path };
+  }
+  return null;
 }
 
 async function requireBinary(name: BinaryName, config: Config, paths: AppPaths): Promise<string> {
@@ -39,8 +57,28 @@ export class Jukebox {
     readonly ytdlp: YtDlp,
     private readonly ffmpeg: string,
     readonly history: History,
+    private readonly persistQueue: boolean,
+    retries: number,
   ) {
-    this.queue = new DownloadQueue(this.worker, currentConfig.concurrency);
+    this.queue = new DownloadQueue(this.worker, {
+      concurrency: currentConfig.concurrency,
+      retries,
+    });
+    if (persistQueue) {
+      this.queue.on("update", (job) => {
+        if (job.status === "queued") this.history.saveQueued(job.id, job.request);
+        else if (FINISHED_STATUSES.has(job.status)) this.history.removeQueued(job.id);
+      });
+    }
+  }
+
+  /** Recoloca na fila os downloads que ficaram pendentes na última sessão. */
+  restoreQueue(): number {
+    if (!this.persistQueue) return 0;
+    const saved = this.history.loadQueued<TrackRequest>();
+    for (const { id } of saved) this.history.removeQueued(id);
+    this.queue.add(saved.map(({ request }) => request));
+    return saved.length;
   }
 
   get config(): Config {
@@ -71,12 +109,17 @@ export class Jukebox {
       requireBinary("ffprobe", config, paths),
     ]);
     const history = new History(options.historyFile ?? join(paths.data, "history.db"));
-    const client = new YtDlp({
-      ytDlp,
+    const jsRuntime =
+      options.jsRuntime !== undefined ? options.jsRuntime : await defaultJsRuntime();
+    const client = new YtDlp({ ytDlp, ffmpeg, jsRuntime });
+    return new Jukebox(
+      config,
+      client,
       ffmpeg,
-      ...(options.jsRuntime !== undefined && { jsRuntime: options.jsRuntime }),
-    });
-    return new Jukebox(config, client, ffmpeg, history);
+      history,
+      options.persistQueue ?? false,
+      options.retries ?? 2,
+    );
   }
 
   search(query: string, limit?: number, signal?: AbortSignal): Promise<VideoSummary[]> {
@@ -110,7 +153,7 @@ export class Jukebox {
   }
 
   private readonly worker: JobWorker = async (request: TrackRequest, { signal, onProgress }) => {
-    if (this.currentConfig.skipDuplicates) {
+    if (this.currentConfig.skipDuplicates && !request.redownload) {
       const previous = this.history.find(request.video.id);
       if (previous && (await pathExists(previous.path))) {
         return { kind: "skipped", reason: "history", path: previous.path };

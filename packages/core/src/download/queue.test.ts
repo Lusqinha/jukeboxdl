@@ -19,7 +19,12 @@ function deferred() {
 
 const done = (id: string): JobOutcome => ({
   kind: "done",
-  result: { status: "downloaded", path: `/${id}.mp3`, metadata: { id, title: id } },
+  result: {
+    status: "downloaded",
+    path: `/${id}.mp3`,
+    paths: [`/${id}.mp3`],
+    metadata: { id, title: id },
+  },
 });
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -116,6 +121,39 @@ describe("DownloadQueue", () => {
     queue.cancel(running?.id ?? "");
     await queue.onIdle();
     expect(queue.jobs.map((j) => j.status)).toEqual(["canceled", "canceled"]);
+  });
+
+  it("tenta de novo sozinho em erros temporários", async () => {
+    let attempts = 0;
+    const queue = new DownloadQueue(
+      async (req) => {
+        attempts++;
+        if (attempts < 3) throw new Error("HTTP Error 503: Service Unavailable");
+        return done(req.video.id);
+      },
+      { retries: 2, retryDelays: [1, 1] },
+    );
+    const statuses: string[] = [];
+    queue.on("update", (job) => statuses.push(job.status));
+    queue.add([request("a")]);
+    await queue.onIdle();
+    expect(attempts).toBe(3);
+    expect(statuses.filter((s) => s === "retrying")).toHaveLength(2);
+    expect(queue.jobs[0]?.status).toBe("done");
+  });
+
+  it("não repete erros permanentes", async () => {
+    let attempts = 0;
+    const queue = new DownloadQueue(
+      async () => {
+        attempts++;
+        throw new Error("Video unavailable");
+      },
+      { retries: 2, retryDelays: [1] },
+    );
+    queue.add([request("a")]);
+    await queue.onIdle();
+    expect(attempts).toBe(1);
   });
 
   it("tenta de novo trabalhos que falharam", async () => {

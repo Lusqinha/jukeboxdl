@@ -35,6 +35,11 @@ const MIGRATIONS: string[] = [
      downloaded_at TEXT NOT NULL
    );
    CREATE INDEX downloads_video_id ON downloads (video_id);`,
+  `CREATE TABLE queue (
+     id TEXT PRIMARY KEY,
+     request TEXT NOT NULL,
+     position INTEGER NOT NULL
+   );`,
 ];
 
 function fromRow(row: Row): HistoryEntry {
@@ -118,6 +123,27 @@ export class History {
 
   remove(videoId: string): number {
     return this.db.prepare("DELETE FROM downloads WHERE video_id = ?").run(videoId).changes;
+  }
+
+  /** Guarda um download pendente, para retomar ao reabrir o app. */
+  saveQueued(id: string, request: unknown): void {
+    this.db
+      .prepare("INSERT OR IGNORE INTO queue (id, request, position) VALUES (?, ?, ?)")
+      .run(id, JSON.stringify(request), Date.now());
+  }
+
+  removeQueued(id: string): void {
+    this.db.prepare("DELETE FROM queue WHERE id = ?").run(id);
+  }
+
+  /** Downloads pendentes de sessões anteriores, na ordem em que foram adicionados. */
+  loadQueued<T>(): Array<{ id: string; request: T }> {
+    const rows = this.db
+      .prepare<[], { id: string; request: string }>(
+        "SELECT id, request FROM queue ORDER BY position, rowid",
+      )
+      .all();
+    return rows.map((row) => ({ id: row.id, request: JSON.parse(row.request) as T }));
   }
 
   close(): void {

@@ -78,7 +78,8 @@ export function parseProgressLine(line: string): DownloadProgress | null {
       return null;
     }
   }
-  if (line.startsWith("[ExtractAudio]")) return { phase: "convert" };
+  if (/^\[(?:ExtractAudio|SponsorBlock|ModifyChapters|SplitChapters)\]/.test(line))
+    return { phase: "convert" };
   return null;
 }
 

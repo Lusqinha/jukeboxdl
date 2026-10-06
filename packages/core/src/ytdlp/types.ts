@@ -61,4 +61,5 @@ export interface YtDlpInfo {
   release_year?: number | null;
   release_date?: string | null;
   entries?: YtDlpInfo[] | null;
+  chapters?: Array<{ title?: string | null; start_time?: number; end_time?: number }> | null;
 }

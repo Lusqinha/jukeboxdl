@@ -1,7 +1,7 @@
 import { ConfigError } from "../errors";
 import { LOCALES } from "../i18n";
 import { type CoreMessageKey, t } from "../i18n/messages";
-import { type Config, configSchema, THEMES } from "./schema";
+import { AUDIO_FORMATS, type Config, configSchema, THEMES } from "./schema";
 
 export type ConfigFieldType = "path" | "template" | "choice" | "boolean" | "number";
 
@@ -19,10 +19,15 @@ export const CONFIG_FIELDS: readonly ConfigField[] = [
   { key: "outputDir", type: "path" },
   { key: "filenameTemplate", type: "template" },
   { key: "playlistTemplate", type: "template" },
+  { key: "audio.format", type: "choice", choices: AUDIO_FORMATS },
   { key: "audio.bitrate", type: "choice", choices: [128, 192, 256, 320] },
   { key: "audio.embedCover", type: "boolean" },
+  { key: "audio.removeNonMusic", type: "boolean" },
+  { key: "audio.replayGain", type: "boolean" },
+  { key: "musicbrainz", type: "boolean" },
   { key: "concurrency", type: "number" },
   { key: "skipDuplicates", type: "boolean" },
+  { key: "notifications", type: "boolean" },
   { key: "binaries.ytDlp", type: "path", optional: true },
   { key: "binaries.ffmpeg", type: "path", optional: true },
 ];

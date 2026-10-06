@@ -2,7 +2,7 @@ import type { TrackMetadata } from "../metadata";
 import type { YtDlpInfo } from "../ytdlp/types";
 
 const NOISE_WORDS =
-  /\b(?:official|oficial|lyrics?|letra|audio|áudio|video|vídeo|clipe|visuali[sz]er|hd|hq|4k|mv|m\/v|ncs release)\b/i;
+  /\b(?:official|oficial|lyrics?|letra|audio|áudio|video|vídeo|clipe|visuali[sz]er|hd|hq|4k|mv|m\/v|ncs release|full album|álbum completo|album completo|full ep)\b/i;
 
 /** Remove marcações como "(Official Video)", "[HD]" e descrições após " | " do título. */
 export function cleanTitle(title: string): string {

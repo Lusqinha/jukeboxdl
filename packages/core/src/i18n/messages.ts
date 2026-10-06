@@ -28,7 +28,20 @@ export const t = defineMessages({
     "field.playlistTemplate.description": "Template usado em faixas vindas de playlists",
     "field.audio.bitrate.label": "Qualidade (kbps)",
     "field.audio.bitrate.description":
-      "Bitrate do MP3; o YouTube entrega ~160 kbps, acima disso só aumenta o arquivo",
+      "Só para mp3; o YouTube entrega ~160 kbps, acima disso só aumenta o arquivo",
+    "field.audio.format.label": "Formato",
+    "field.audio.format.description":
+      "mp3: compatível com tudo · opus/m4a: áudio original do YouTube, sem reconverter",
+    "field.audio.removeNonMusic.label": "Remover trechos sem música",
+    "field.audio.removeNonMusic.description":
+      "Corta falas e introduções usando o SponsorBlock (envia o id do vídeo para sponsor.ajay.app)",
+    "field.audio.replayGain.label": "ReplayGain",
+    "field.audio.replayGain.description":
+      "Mede o volume e grava tags para os players tocarem tudo no mesmo nível",
+    "field.musicbrainz.label": "Completar pelo MusicBrainz",
+    "field.musicbrainz.description": "Busca álbum, ano e número da faixa quando o vídeo não traz",
+    "field.notifications.label": "Notificações",
+    "field.notifications.description": "Avisa pelo sistema quando a fila de downloads termina",
     "field.audio.embedCover.label": "Embutir capa",
     "field.audio.embedCover.description": "Grava a thumbnail como capa",
     "field.concurrency.label": "Downloads simultâneos",
@@ -95,7 +108,21 @@ export const t = defineMessages({
     "field.playlistTemplate.description": "Template used for tracks coming from playlists",
     "field.audio.bitrate.label": "Quality (kbps)",
     "field.audio.bitrate.description":
-      "MP3 bitrate; YouTube delivers ~160 kbps, higher only makes the file bigger",
+      "mp3 only; YouTube delivers ~160 kbps, higher only makes the file bigger",
+    "field.audio.format.label": "Format",
+    "field.audio.format.description":
+      "mp3: plays everywhere · opus/m4a: original YouTube audio, no re-encoding",
+    "field.audio.removeNonMusic.label": "Remove non-music parts",
+    "field.audio.removeNonMusic.description":
+      "Cuts talking and intros using SponsorBlock (sends the video id to sponsor.ajay.app)",
+    "field.audio.replayGain.label": "ReplayGain",
+    "field.audio.replayGain.description":
+      "Measures loudness and writes tags so players play everything at the same level",
+    "field.musicbrainz.label": "Complete from MusicBrainz",
+    "field.musicbrainz.description":
+      "Looks up album, year and track number when the video lacks them",
+    "field.notifications.label": "Notifications",
+    "field.notifications.description": "System notification when the download queue finishes",
     "field.audio.embedCover.label": "Embed cover",
     "field.audio.embedCover.description": "Saves the thumbnail as cover art",
     "field.concurrency.label": "Simultaneous downloads",

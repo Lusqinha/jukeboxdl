@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
+import { isTransientError, sleep } from "../retry";
 import type { DownloadProgress } from "../ytdlp/types";
 import type { TrackRequest, TrackResult } from "./track";
 
@@ -8,6 +9,7 @@ export type JobStatus =
   | "downloading"
   | "converting"
   | "tagging"
+  | "retrying"
   | "done"
   | "skipped"
   | "failed"
@@ -28,6 +30,17 @@ export interface Job {
   /** Caminho do arquivo final (baixado ou já existente). */
   path?: string | undefined;
   error?: string | undefined;
+  /** Tentativa atual (começa em 1). */
+  attempt?: number | undefined;
+}
+
+export interface QueueOptions {
+  concurrency?: number;
+  /** Quantas novas tentativas para erros temporários. */
+  retries?: number;
+  /** Espera antes de cada nova tentativa, em ms. */
+  retryDelays?: readonly number[];
+  isRetryable?: (error: unknown) => boolean;
 }
 
 export type JobOutcome =
@@ -62,11 +75,21 @@ export class DownloadQueue extends EventEmitter<QueueEvents> {
   private readonly pending: string[] = [];
   private readonly running = new Map<string, AbortController>();
 
+  private concurrency: number;
+  private readonly retries: number;
+  private readonly retryDelays: readonly number[];
+  private readonly isRetryable: (error: unknown) => boolean;
+
   constructor(
     private readonly worker: JobWorker,
-    private concurrency = 3,
+    options: QueueOptions | number = {},
   ) {
     super();
+    const opts = typeof options === "number" ? { concurrency: options } : options;
+    this.concurrency = opts.concurrency ?? 3;
+    this.retries = opts.retries ?? 0;
+    this.retryDelays = opts.retryDelays ?? [2000, 6000];
+    this.isRetryable = opts.isRetryable ?? isTransientError;
   }
 
   get jobs(): Job[] {
@@ -181,10 +204,28 @@ export class DownloadQueue extends EventEmitter<QueueEvents> {
     this.update(id, { status: "downloading" });
 
     try {
-      const outcome = await this.worker(job.request, {
-        signal: controller.signal,
-        onProgress: (progress) => this.onProgress(id, progress),
-      });
+      let outcome: JobOutcome;
+      for (let attempt = 1; ; attempt++) {
+        try {
+          outcome = await this.worker(job.request, {
+            signal: controller.signal,
+            onProgress: (progress) => this.onProgress(id, progress),
+          });
+          break;
+        } catch (error) {
+          if (controller.signal.aborted || attempt > this.retries || !this.isRetryable(error))
+            throw error;
+          this.update(id, {
+            status: "retrying",
+            attempt: attempt + 1,
+            progress: 0,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          const delays = this.retryDelays;
+          await sleep(delays[attempt - 1] ?? delays.at(-1) ?? 0, controller.signal);
+          this.update(id, { status: "downloading", error: undefined });
+        }
+      }
       if (outcome.kind === "skipped") {
         this.update(id, {
           status: "skipped",

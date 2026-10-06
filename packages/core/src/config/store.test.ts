@@ -21,7 +21,7 @@ describe("config", () => {
     await saveConfig({ concurrency: 5, audio: { bitrate: 320 } }, file);
     const config = await loadConfig(file);
     expect(config.concurrency).toBe(5);
-    expect(config.audio).toEqual({ bitrate: 320, embedCover: true });
+    expect(config.audio).toMatchObject({ bitrate: 320, embedCover: true, format: "mp3" });
     expect(config.filenameTemplate).toBe(DEFAULT_CONFIG.filenameTemplate);
   });
 
