@@ -26,9 +26,9 @@ export function Doctor({ configFile, configError, binDir, binaries }: DoctorProp
         {configError && <Text color="red">{configError}</Text>}
       </Box>
 
-      <Box marginTop={1}>
+      <Box marginTop={1} flexDirection="column">
         <Text bold>Dependências</Text>
-        <Text dimColor> (binários gerenciados em {binDir})</Text>
+        <Text dimColor> binários gerenciados em {binDir}</Text>
       </Box>
       <Box paddingLeft={2} flexDirection="column">
         {BINARY_NAMES.map((name) => {

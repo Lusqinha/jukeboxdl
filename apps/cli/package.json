@@ -18,13 +18,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@jukeboxdl/core": "workspace:*",
     "better-sqlite3": "^13.0.3",
     "commander": "^15.0.0",
     "ink": "^8.0.0",
     "react": "^19.3.0"
   },
   "devDependencies": {
+    "@jukeboxdl/core": "workspace:*",
     "@types/react": "^19.3.0",
     "ink-testing-library": "^4.0.0"
   }

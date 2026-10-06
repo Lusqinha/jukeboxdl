@@ -4,9 +4,10 @@ import type { YtDlpInfo } from "../ytdlp/types";
 const NOISE_WORDS =
   /\b(?:official|oficial|lyrics?|letra|audio|áudio|video|vídeo|clipe|visuali[sz]er|hd|hq|4k|mv|m\/v|ncs release)\b/i;
 
-/** Remove marcações como "(Official Video)" ou "[HD]" do título. */
+/** Remove marcações como "(Official Video)", "[HD]" e descrições após " | " do título. */
 export function cleanTitle(title: string): string {
-  return title
+  const [main = title] = title.split(/\s+\|\s+/);
+  return (main.trim() || title)
     .replace(/\s*[([]([^)\]]*)[)\]]/g, (group, inner: string) =>
       NOISE_WORDS.test(inner) ? "" : group,
     )

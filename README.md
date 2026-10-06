@@ -2,7 +2,48 @@
 
 Baixe músicas do YouTube como MP3 pelo terminal: busca, playlists, tags ID3 com capa e nomes de arquivo configuráveis.
 
-> Em desenvolvimento. Por enquanto só existe o comando `doctor`.
+## Instalação
+
+```sh
+pnpm install
+pnpm build
+npm install -g ./apps/cli   # cria o comando `jukeboxdl` (link para apps/cli)
+jukeboxdl deps install      # baixa yt-dlp/ffmpeg se faltarem (a interface também oferece)
+```
+
+## Uso
+
+### Interface interativa
+
+```sh
+jukeboxdl
+```
+
+| Aba | Teclas |
+|---|---|
+| **Buscar** | digite e `enter` para buscar ou colar um link · `↓` resultados · `espaço` marcar · `a` marcar todas · `enter` baixar |
+| **Downloads** | `x` cancelar · `X` cancelar todos · `r` tentar de novo · `R` repetir falhas · `c` limpar concluídos |
+| **Histórico** | `/` filtrar · `d` remover do histórico |
+| **Config** | `enter` editar/alternar · preview ao vivo do template de nome |
+
+`tab`/`shift+tab` trocam de aba; `ctrl+c` sai (pede confirmação se houver downloads em andamento). Faixas já baixadas aparecem com ✓ nos resultados. Em links `watch?v=…&list=…`, só o vídeo vem marcado; `a` marca a playlist inteira.
+
+### Linha de comando
+
+```sh
+jukeboxdl get "daft punk aerodynamic"                    # baixa o primeiro resultado
+jukeboxdl get <link-video> <link-playlist> -i 1-5,8      # vários links; faixas 1 a 5 e 8 da playlist
+jukeboxdl get <link> -o ~/Downloads -t "{artist}/{title}" -b 320 --force
+jukeboxdl search -n 5 "alan walker"                      # --json para scripts
+jukeboxdl config                                         # mostra tudo
+jukeboxdl config set filenameTemplate "{artist}/{album|Singles}/{track:02} - {title}"
+jukeboxdl config preview "{playlist}/{index:03} {title}"
+jukeboxdl history -s walker
+jukeboxdl deps update                                    # atualiza o yt-dlp gerenciado
+jukeboxdl doctor
+```
+
+`get` sai com código 1 se alguma faixa falhar.
 
 ## Requisitos
 
@@ -14,7 +55,7 @@ Baixe músicas do YouTube como MP3 pelo terminal: busca, playlists, tags ID3 com
 
 ```sh
 pnpm install
-pnpm dev doctor      # roda a CLI a partir do código-fonte
+pnpm dev             # roda a interface a partir do código-fonte (pnpm dev get …, pnpm dev doctor …)
 pnpm test            # Vitest
 pnpm lint            # Biome
 pnpm typecheck
@@ -24,7 +65,10 @@ pnpm build           # gera apps/cli/dist
 ### Estrutura
 
 ```
-apps/cli         CLI (commander + Ink)
+apps/cli         CLI (commander) e interface interativa (Ink)
+  commands/      subcomandos não interativos
+  tui/           telas da interface interativa
+  components/    componentes compartilhados (TextInput, barra de progresso, linha de download)
 packages/core    lógica independente de interface
   ytdlp/         cliente do yt-dlp (busca, links, download com progresso)
   tags/          metadados a partir do vídeo e gravação de ID3 + capa via ffmpeg

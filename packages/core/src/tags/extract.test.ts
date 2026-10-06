@@ -11,6 +11,7 @@ describe("cleanTitle", () => {
     ["Song (Remix) (Official Audio)", "Song (Remix)"],
     ["Song (feat. Someone)", "Song (feat. Someone)"],
     ["Song (Live)", "Song (Live)"],
+    ["A - Song | Witch House | NCS - Copyright Free Music", "A - Song"],
   ])("%j → %j", (input, expected) => {
     expect(cleanTitle(input)).toBe(expected);
   });
