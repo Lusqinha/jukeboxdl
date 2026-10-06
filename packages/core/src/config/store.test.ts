@@ -38,6 +38,12 @@ describe("config", () => {
     expect((error as ConfigError).issues[0]).toMatch(/^filenameTemplate: Variável desconhecida/);
   });
 
+  it("migra o nome antigo do tema", async () => {
+    await saveConfig({}, file);
+    await writeFile(file, JSON.stringify({ theme: "lataria" }));
+    expect((await loadConfig(file)).theme).toBe("neon");
+  });
+
   it("rejeita JSON malformado", async () => {
     await saveConfig({}, file);
     await writeFile(file, "{ nope");

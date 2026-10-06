@@ -13,6 +13,8 @@ describe("config fields", () => {
     let config = setConfigValue(DEFAULT_CONFIG, "audio.bitrate", "320");
     config = setConfigValue(config, "skipDuplicates", "não");
     config = setConfigValue(config, "binaries.ytDlp", "/opt/yt-dlp");
+    config = setConfigValue(config, "theme", "classico");
+    expect(config.theme).toBe("classico");
     expect(config.audio.bitrate).toBe(320);
     expect(config.skipDuplicates).toBe(false);
     expect(config.binaries.ytDlp).toBe("/opt/yt-dlp");
@@ -26,6 +28,7 @@ describe("config fields", () => {
 
   it.each([
     ["audio.bitrate", "300"],
+    ["theme", "vaporwave"],
     ["concurrency", "20"],
     ["concurrency", "abc"],
     ["skipDuplicates", "talvez"],

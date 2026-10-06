@@ -1,0 +1,82 @@
+import type { Job } from "@jukeboxdl/core";
+import { Box, Spacer, Text, useAnimation } from "ink";
+import { jobTitle } from "../components/JobRow";
+import { ProgressBar } from "../components/ProgressBar";
+import { displayText, formatBytes } from "../lib/format";
+import { gradientAt, range, useTheme } from "./theme";
+
+const REEL = ["◐", "◓", "◑", "◒"];
+const EQ = "▁▂▃▄▅▆▇█";
+export const TAPE_DECK_WIDTH = 46;
+
+/** Widget flutuante que mostra a faixa sendo baixada, como um toca-fitas. */
+export function TapeDeck({ jobs, bottom }: { jobs: Job[]; bottom: number }) {
+  const theme = useTheme();
+  const active = jobs.filter(
+    (j) => j.status === "downloading" || j.status === "converting" || j.status === "tagging",
+  );
+  const { frame } = useAnimation({ interval: 120, isActive: active.length > 0 });
+  const job = active[0];
+  if (!theme.retro || !job) return null;
+
+  const reel = REEL[frame % REEL.length];
+  const eq = range(8).map((i) => {
+    const level = (frame * (i + 2) + i * 3) % EQ.length;
+    return (
+      <Text key={`eq${i}`} color={gradientAt(theme, i + frame / 2)}>
+        {EQ[level]}
+      </Text>
+    );
+  });
+  const detail =
+    job.status === "converting"
+      ? "convertendo"
+      : job.status === "tagging"
+        ? "gravando tags"
+        : job.speed
+          ? `${formatBytes(job.speed)}/s`
+          : "";
+
+  return (
+    <Box
+      position="absolute"
+      right={2}
+      bottom={bottom}
+      width={TAPE_DECK_WIDTH}
+      flexDirection="column"
+      borderStyle="single"
+      borderTopColor={theme.bevelLight}
+      borderLeftColor={theme.bevelLight}
+      borderBottomColor={theme.bevelDark}
+      borderRightColor={theme.bevelDark}
+      backgroundColor="#0b0b12"
+      paddingX={1}
+    >
+      <Box>
+        <Text color={theme.accent}>{"// tocando agora"}</Text>
+        <Spacer />
+        <Text color={theme.notice}>[ {active.length} na fita ]</Text>
+      </Box>
+      <Box>
+        <Text color={theme.link}>(</Text>
+        <Text color={theme.accent}>{reel}</Text>
+        <Text color={theme.link}>)</Text>
+        <Text color={theme.muted}>═</Text>
+        <Text color={theme.link}>(</Text>
+        <Text color={theme.accent}>{reel}</Text>
+        <Text color={theme.link}>) </Text>
+        <Box flexShrink={1}>
+          <Text wrap="truncate-end" color="#ffffff">
+            {displayText(jobTitle(job))}
+          </Text>
+        </Box>
+      </Box>
+      <Box gap={1}>
+        <Text>{eq}</Text>
+        <ProgressBar value={job.progress} width={12} />
+        <Text color={theme.notice}>{String(Math.round(job.progress * 100)).padStart(3)}%</Text>
+        <Text color={theme.meta}>{detail}</Text>
+      </Box>
+    </Box>
+  );
+}

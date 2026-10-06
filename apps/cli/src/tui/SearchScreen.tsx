@@ -1,12 +1,15 @@
 import type { Jukebox, PlaylistItem, VideoSummary } from "@jukeboxdl/core";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useWindowSize } from "ink";
 import { useEffect, useRef, useState } from "react";
+import { Panel, panelChrome } from "../components/Panel";
 import { Spinner } from "../components/Spinner";
+import { StarBackdrop } from "../components/Starfield";
 import { TextInput } from "../components/TextInput";
 import { displayText, formatDuration, isUrl, videoIdFromUrl } from "../lib/format";
 import { KeyHints } from "./KeyHints";
 import { ScrollHint, useCursor } from "./list";
-import { SELECTION_BG } from "./theme";
+import { Pointer } from "./Pointer";
+import { useTheme } from "./theme";
 
 type Results =
   | { kind: "search"; query: string; items: VideoSummary[] }
@@ -36,8 +39,10 @@ export function SearchScreen({
   const pending = useRef<string | null>(null);
 
   const items: VideoSummary[] = results?.items ?? [];
-  // Campo de busca (3) + cabeçalho (1) + indicadores de rolagem (2) + atalhos (2).
-  const pageSize = Math.max(3, height - 7);
+  const theme = useTheme();
+  const { columns } = useWindowSize();
+  // Campo (3) + moldura/cabeçalho dos resultados + indicadores de rolagem (2) + atalhos (2).
+  const pageSize = Math.max(3, height - 3 - (theme.retro ? panelChrome(theme, true) : 1) - 4);
   const cursor = useCursor(items.length, pageSize);
   const lastQuery = useRef<string | null>(null);
 
@@ -166,98 +171,142 @@ export function SearchScreen({
   );
 
   const visible = items.slice(cursor.start, cursor.start + pageSize);
+  const inputFocused = active && focus === "input";
+  const summary = results
+    ? results.kind === "playlist"
+      ? `playlist "${displayText(results.title)}" · ${results.items.length} faixas${results.unavailable ? ` · ${results.unavailable} indisponíveis` : ""}`
+      : `${results.items.length} resultado${results.items.length === 1 ? "" : "s"}`
+    : "";
+
+  const input = (
+    <Box
+      borderStyle={theme.retro ? "single" : "round"}
+      {...(theme.retro
+        ? {
+            borderTopColor: theme.bevelDark,
+            borderLeftColor: theme.bevelDark,
+            borderBottomColor: theme.bevelLight,
+            borderRightColor: theme.bevelLight,
+          }
+        : { borderColor: inputFocused ? "cyan" : "gray" })}
+      paddingX={1}
+    >
+      <Text color={theme.retro ? theme.accent : theme.link}>
+        {loading ? <Spinner /> : theme.retro ? "»" : "🔎"}{" "}
+      </Text>
+      <TextInput
+        value={query}
+        onChange={setQuery}
+        onSubmit={submit}
+        focus={inputFocused}
+        placeholder="buscar música ou colar link de vídeo/playlist"
+      />
+    </Box>
+  );
+
+  const list = results && (
+    <Box flexDirection="column" flexGrow={1}>
+      <ScrollHint start={cursor.start} pageSize={pageSize} length={items.length} position="above" />
+      {visible.map((item, i) => {
+        const index = cursor.start + i;
+        const selected = focus === "list" && index === cursor.index;
+        const isMarked = marked.has(item.id);
+        return (
+          <Box key={item.id} {...(selected && { backgroundColor: theme.selectionBg })}>
+            <Pointer selected={selected} />
+            <Text color={isMarked ? theme.accent : theme.muted}>{isMarked ? "◉ " : "○ "}</Text>
+            {"index" in item && <Text color={theme.muted}>{String(item.index).padStart(3)} </Text>}
+            <Box flexGrow={1} flexShrink={1}>
+              <Text
+                wrap="truncate-end"
+                bold={selected}
+                {...(theme.retro && selected && { color: "#ffffff" })}
+              >
+                {displayText(item.title)}
+              </Text>
+            </Box>
+            <Box flexShrink={0} marginLeft={2}>
+              {downloaded.has(item.id) && <Text color={theme.success}>✓ </Text>}
+              <Box width={22} justifyContent="flex-end">
+                <Text color={theme.meta} wrap="truncate-end">
+                  {displayText(item.channel ?? "")}
+                </Text>
+              </Box>
+              <Box width={8} justifyContent="flex-end">
+                <Text color={theme.meta}>{formatDuration(item.duration)}</Text>
+              </Box>
+            </Box>
+          </Box>
+        );
+      })}
+      <ScrollHint start={cursor.start} pageSize={pageSize} length={items.length} position="below" />
+    </Box>
+  );
+
+  // Área disponível para o estado vazio: tudo menos campo, moldura e atalhos.
+  const emptyHeight = Math.max(3, height - 3 - panelChrome(theme, true) - 2);
+  const emptyWidth = Math.max(10, columns - (theme.retro ? 4 : 0));
+  const empty = (
+    <StarBackdrop
+      width={emptyWidth}
+      height={emptyHeight}
+      contentWidth={Math.min(emptyWidth, 84)}
+      contentHeight={4}
+      seed={7}
+    >
+      {error ? (
+        <Text color={theme.danger}>✖ {error}</Text>
+      ) : loading ? (
+        <Text color={theme.notice}>
+          <Spinner /> {loading}
+        </Text>
+      ) : (
+        <>
+          <Text color={theme.notice}>
+            {theme.retro ? "★ " : ""}digite uma música, artista ou álbum e tecle enter
+            {theme.retro ? " ★" : ""}
+          </Text>
+          <Text color={theme.muted}>
+            links do YouTube e YouTube Music (vídeos, playlists e álbuns) também valem
+          </Text>
+        </>
+      )}
+    </StarBackdrop>
+  );
+
+  const header = (
+    <Text color={theme.muted}>
+      {summary}
+      {marked.size > 0 && (
+        <Text color={theme.accent}>
+          {" "}
+          · {marked.size} marcada{marked.size > 1 ? "s" : ""}
+        </Text>
+      )}
+    </Text>
+  );
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Box
-        borderStyle="round"
-        borderColor={focus === "input" && active ? "cyan" : "gray"}
-        paddingX={1}
-      >
-        <Text color="cyan">{loading ? <Spinner /> : "🔎"} </Text>
-        <TextInput
-          value={query}
-          onChange={setQuery}
-          onSubmit={submit}
-          focus={active && focus === "input"}
-          placeholder="Buscar música ou colar link de vídeo/playlist"
-        />
-      </Box>
-
-      {error && <Text color="red"> ✖ {error}</Text>}
-      {loading && !results && (
-        <Text dimColor>
-          {"  "}
-          {loading}
-        </Text>
-      )}
-
-      {results && (
+      {input}
+      {theme.retro ? (
+        <Panel title={results ? "resultados" : "sintonizar"} right={results && header} flexGrow={1}>
+          {results && error && <Text color={theme.danger}>✖ {error}</Text>}
+          {results ? list : empty}
+        </Panel>
+      ) : (
         <Box flexDirection="column" flexGrow={1}>
-          <Text dimColor>
-            {"  "}
-            {results.kind === "playlist"
-              ? `Playlist "${results.title}" · ${results.items.length} faixas${results.unavailable ? ` · ${results.unavailable} indisponíveis` : ""}`
-              : `${results.items.length} resultado${results.items.length === 1 ? "" : "s"}`}
-            {marked.size > 0 && (
-              <Text color="cyan">
-                {" "}
-                · {marked.size} marcada{marked.size > 1 ? "s" : ""}
-              </Text>
-            )}
-          </Text>
-          <ScrollHint
-            start={cursor.start}
-            pageSize={pageSize}
-            length={items.length}
-            position="above"
-          />
-          {visible.map((item, i) => {
-            const index = cursor.start + i;
-            const selected = focus === "list" && index === cursor.index;
-            const isMarked = marked.has(item.id);
-            return (
-              <Box key={item.id} {...(selected && { backgroundColor: SELECTION_BG })}>
-                <Text color="cyan">{selected ? "❯ " : "  "}</Text>
-                <Text color={isMarked ? "cyan" : "gray"}>{isMarked ? "◉ " : "○ "}</Text>
-                {"index" in item && <Text dimColor>{String(item.index).padStart(3)} </Text>}
-                <Box flexGrow={1} flexShrink={1}>
-                  <Text wrap="truncate-end" bold={selected}>
-                    {displayText(item.title)}
-                  </Text>
-                </Box>
-                <Box flexShrink={0} marginLeft={2}>
-                  {downloaded.has(item.id) && <Text color="green">✓ </Text>}
-                  <Box width={22} justifyContent="flex-end">
-                    <Text dimColor wrap="truncate-end">
-                      {displayText(item.channel ?? "")}
-                    </Text>
-                  </Box>
-                  <Box width={8} justifyContent="flex-end">
-                    <Text dimColor>{formatDuration(item.duration)}</Text>
-                  </Box>
-                </Box>
-              </Box>
-            );
-          })}
-          <ScrollHint
-            start={cursor.start}
-            pageSize={pageSize}
-            length={items.length}
-            position="below"
-          />
+          {results ? (
+            <>
+              <Box paddingLeft={2}>{header}</Box>
+              {error && <Text color={theme.danger}> ✖ {error}</Text>}
+              {list}
+            </>
+          ) : (
+            empty
+          )}
         </Box>
       )}
-
-      {!results && !loading && !error && (
-        <Box flexDirection="column" paddingX={2} paddingY={1}>
-          <Text dimColor>Digite o nome de uma música, artista ou álbum e tecle enter.</Text>
-          <Text dimColor>
-            Links do YouTube e YouTube Music (vídeos, playlists e álbuns) também funcionam.
-          </Text>
-        </Box>
-      )}
-
       <Box marginTop={1}>
         {focus === "input" ? (
           <KeyHints
@@ -275,7 +324,7 @@ export function SearchScreen({
               ["espaço", "marcar"],
               ["a", "marcar todas"],
               ["/", "buscar"],
-              ["tab", "próxima aba"],
+              ["1-4", "abas"],
             ]}
           />
         )}

@@ -1,5 +1,5 @@
 import { ConfigError } from "../errors";
-import { type Config, configSchema } from "./schema";
+import { type Config, configSchema, THEMES } from "./schema";
 
 export type ConfigFieldType = "path" | "template" | "choice" | "boolean" | "number";
 
@@ -8,12 +8,19 @@ export interface ConfigField {
   label: string;
   type: ConfigFieldType;
   description: string;
-  choices?: readonly number[];
+  choices?: readonly (number | string)[];
   optional?: boolean;
 }
 
 /** Campos editáveis pelas interfaces, na ordem de exibição. */
 export const CONFIG_FIELDS: readonly ConfigField[] = [
+  {
+    key: "theme",
+    label: "Tema",
+    type: "choice",
+    choices: THEMES,
+    description: "neon: retrô cyberpunk · classico: visual simples (melhor sem cor de 24 bits)",
+  },
   {
     key: "outputDir",
     label: "Pasta de destino",
@@ -104,8 +111,9 @@ function coerce(field: ConfigField, raw: string): unknown {
       throw new ConfigError(`${field.key}: use sim/não (ou true/false)`, "", [
         `${field.key}: valor booleano inválido`,
       ]);
-    case "number":
-    case "choice": {
+    case "choice":
+    case "number": {
+      if (field.type === "choice" && typeof field.choices?.[0] === "string") return value;
       const number = Number(value);
       if (!Number.isFinite(number) || value === "") {
         throw new ConfigError(`${field.key}: "${raw}" não é um número`, "", [

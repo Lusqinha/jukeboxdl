@@ -4,6 +4,7 @@ import {
   detectBinaries,
   Jukebox,
   loadConfig,
+  type ThemeName,
 } from "@jukeboxdl/core";
 import { Box, Text, useApp, useInput } from "ink";
 import { useCallback, useEffect, useState } from "react";
@@ -12,6 +13,7 @@ import { missingDeps } from "../lib/deps";
 import { BootScreen } from "./BootScreen";
 import { Main } from "./Main";
 import { SetupScreen } from "./SetupScreen";
+import { ThemeProvider } from "./theme";
 
 type State =
   | { phase: "loading" }
@@ -27,6 +29,7 @@ export function App() {
   const [state, setState] = useState<State>({ phase: "loading" });
   const [boot, setBoot] = useState({ progress: 0, status: "Iniciando…" });
   const [booting, setBooting] = useState(true);
+  const [themeName, setThemeName] = useState<ThemeName>("neon");
 
   const load = useCallback(async () => {
     setState({ phase: "loading" });
@@ -34,6 +37,7 @@ export function App() {
     try {
       step(0.15, "Lendo configuração…");
       const config = await loadConfig();
+      setThemeName(config.theme);
       step(0.45, "Verificando yt-dlp e ffmpeg…");
       const report = await detectBinaries({ binaries: config.binaries });
       const tasks = missingDeps(report);
@@ -83,21 +87,26 @@ export function App() {
     { isActive: showBoot || state.phase === "error" },
   );
 
-  if (showBoot) return <BootScreen progress={boot.progress} status={boot.status} />;
+  return <ThemeProvider name={themeName}>{renderPhase()}</ThemeProvider>;
 
-  switch (state.phase) {
-    case "error":
-      return (
-        <Box padding={1} flexDirection="column" gap={1}>
-          <Text color="red">✖ {state.message}</Text>
-          <Text dimColor>Corrija o problema e abra de novo. (q para sair)</Text>
-        </Box>
-      );
-    case "setup":
-      return <SetupScreen report={state.report} tasks={state.tasks} onReady={load} onQuit={exit} />;
-    case "ready":
-      return <Main jukebox={state.jukebox} onQuit={quit} />;
-    default:
-      return null;
+  function renderPhase() {
+    if (showBoot) return <BootScreen progress={boot.progress} status={boot.status} />;
+    switch (state.phase) {
+      case "error":
+        return (
+          <Box padding={1} flexDirection="column" gap={1}>
+            <Text color="red">✖ {state.message}</Text>
+            <Text dimColor>Corrija o problema e abra de novo. (q para sair)</Text>
+          </Box>
+        );
+      case "setup":
+        return (
+          <SetupScreen report={state.report} tasks={state.tasks} onReady={load} onQuit={exit} />
+        );
+      case "ready":
+        return <Main jukebox={state.jukebox} onQuit={quit} />;
+      default:
+        return null;
+    }
   }
 }

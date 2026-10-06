@@ -12,7 +12,15 @@ const templateString = z
     }
   });
 
+export const THEMES = ["neon", "classico"] as const;
+export type ThemeName = (typeof THEMES)[number];
+
 export const configSchema = z.object({
+  /** Visual da interface interativa. */
+  // "lataria" foi o nome anterior do tema neon.
+  theme: z
+    .preprocess((value) => (value === "lataria" ? "neon" : value), z.enum(THEMES))
+    .default("neon"),
   /** Pasta base dos downloads; aceita `~`. */
   outputDir: z.string().min(1).default("~/Music"),
   /** Template para faixas avulsas. */

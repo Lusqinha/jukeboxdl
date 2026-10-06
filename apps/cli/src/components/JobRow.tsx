@@ -1,6 +1,7 @@
 import type { Job } from "@jukeboxdl/core";
 import { Box, Text, useWindowSize } from "ink";
 import { displayText, formatBytes, formatDuration } from "../lib/format";
+import { useTheme } from "../tui/theme";
 import { ProgressBar } from "./ProgressBar";
 import { Spinner } from "./Spinner";
 
@@ -24,11 +25,12 @@ export function JobRow({
   selected?: boolean;
   outputDir?: string;
 }) {
+  const theme = useTheme();
   const title = (
     <Box flexGrow={1} flexShrink={1} minWidth={10}>
       <Text wrap="truncate-end" bold={selected}>
         {job.request.index !== undefined && (
-          <Text dimColor>{String(job.request.index).padStart(3)} </Text>
+          <Text color={theme.muted}>{String(job.request.index).padStart(3)} </Text>
         )}
         {displayText(jobTitle(job))}
       </Text>
@@ -37,7 +39,7 @@ export function JobRow({
   const { columns } = useWindowSize();
   const pointer = (
     <Box width={2} flexShrink={0}>
-      <Text color="cyan">{selected ? "❯" : " "}</Text>
+      <Text color={theme.link}>{selected ? "❯" : " "}</Text>
     </Box>
   );
   const path =
@@ -49,8 +51,8 @@ export function JobRow({
   let detail: React.ReactNode;
   switch (job.status) {
     case "queued":
-      icon = <Text dimColor>·</Text>;
-      detail = <Text dimColor>na fila</Text>;
+      icon = <Text color={theme.muted}>·</Text>;
+      detail = <Text color={theme.muted}>na fila</Text>;
       break;
     case "downloading":
     case "converting":
@@ -60,7 +62,7 @@ export function JobRow({
         <Text>
           <ProgressBar value={job.progress} width={16} />{" "}
           {String(Math.round(job.progress * 100)).padStart(3)}%{" "}
-          <Text dimColor>
+          <Text color={theme.meta}>
             {STATUS_LABEL[job.status] ??
               [
                 job.speed ? `${formatBytes(job.speed)}/s` : "",
@@ -73,30 +75,32 @@ export function JobRow({
       );
       break;
     case "done":
-      icon = <Text color="green">✔</Text>;
+      icon = <Text color={theme.success}>✔</Text>;
       detail = (
-        <Text dimColor wrap="truncate-start">
+        <Text color={theme.meta} wrap="truncate-start">
           {path}
         </Text>
       );
       break;
     case "skipped":
-      icon = <Text color="yellow">↷</Text>;
+      icon = <Text color={theme.warning}>↷</Text>;
       detail = (
-        <Text dimColor>{job.skipReason === "history" ? "já baixada" : "arquivo já existe"}</Text>
+        <Text color={theme.muted}>
+          {job.skipReason === "history" ? "já baixada" : "arquivo já existe"}
+        </Text>
       );
       break;
     case "failed":
-      icon = <Text color="red">✖</Text>;
+      icon = <Text color={theme.danger}>✖</Text>;
       detail = (
-        <Text color="red" wrap="truncate-end">
+        <Text color={theme.danger} wrap="truncate-end">
           {job.error}
         </Text>
       );
       break;
     case "canceled":
-      icon = <Text dimColor>⊘</Text>;
-      detail = <Text dimColor>cancelada</Text>;
+      icon = <Text color={theme.muted}>⊘</Text>;
+      detail = <Text color={theme.muted}>cancelada</Text>;
       break;
   }
 
@@ -129,21 +133,22 @@ export function summarize(jobs: Job[]) {
 }
 
 export function JobSummary({ jobs }: { jobs: Job[] }) {
+  const theme = useTheme();
   const s = summarize(jobs);
   const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
   const parts: Array<[string, string, string | undefined]> = [];
-  if (s.active) parts.push(["a", `${s.active} baixando`, "cyan"]);
+  if (s.active) parts.push(["a", `${s.active} baixando`, theme.link]);
   if (s.queued) parts.push(["q", `${s.queued} na fila`, undefined]);
-  if (s.done) parts.push(["d", plural(s.done, "concluída"), "green"]);
-  if (s.skipped) parts.push(["s", plural(s.skipped, "pulada"), "yellow"]);
-  if (s.failed) parts.push(["f", plural(s.failed, "falha"), "red"]);
-  if (s.canceled) parts.push(["c", plural(s.canceled, "cancelada"), "gray"]);
-  if (parts.length === 0) return <Text dimColor>nenhum download</Text>;
+  if (s.done) parts.push(["d", plural(s.done, "concluída"), theme.success]);
+  if (s.skipped) parts.push(["s", plural(s.skipped, "pulada"), theme.warning]);
+  if (s.failed) parts.push(["f", plural(s.failed, "falha"), theme.danger]);
+  if (s.canceled) parts.push(["c", plural(s.canceled, "cancelada"), theme.muted]);
+  if (parts.length === 0) return <Text color={theme.muted}>nenhum download</Text>;
   return (
     <Text>
       {parts.map(([key, label, color], i) => (
         <Text key={key}>
-          {i > 0 && <Text dimColor> · </Text>}
+          {i > 0 && <Text color={theme.muted}> · </Text>}
           <Text {...(color && { color })}>{label}</Text>
         </Text>
       ))}

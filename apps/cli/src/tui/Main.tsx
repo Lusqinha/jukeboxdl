@@ -1,6 +1,7 @@
-import type { Jukebox } from "@jukeboxdl/core";
+import type { Config, Jukebox, ThemeName } from "@jukeboxdl/core";
 import { Box, Text, useInput, useWindowSize } from "ink";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { GradientRule } from "../components/GradientRule";
 import { JobSummary, summarize } from "../components/JobRow";
 import { ProgressBar } from "../components/ProgressBar";
 import { useQueueJobs } from "../lib/use-queue";
@@ -8,15 +9,78 @@ import { ConfigScreen } from "./ConfigScreen";
 import { DownloadsScreen } from "./DownloadsScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import { SearchScreen } from "./SearchScreen";
-import { SELECTION_BG } from "./theme";
+import { TapeDeck } from "./TapeDeck";
+import { ThemeProvider, useTheme } from "./theme";
 
 const TABS = ["Buscar", "Downloads", "Histórico", "Config"] as const;
 type Tab = (typeof TABS)[number];
 
-// Cabeçalho (1) + separador (1) + rodapé (2).
+// Cabeçalho (1) + divisor (1) + separador do rodapé (1) + rodapé (1).
 const CHROME_ROWS = 4;
 
-export function Main({ jukebox, onQuit }: { jukebox: Jukebox; onQuit: () => void }) {
+function Header({ tab, pending }: { tab: Tab; pending: number }) {
+  const theme = useTheme();
+  return (
+    <Box>
+      {theme.retro ? (
+        <Text color={theme.accent} bold>
+          {" ♪ jukeboxdl "}
+        </Text>
+      ) : (
+        <Text backgroundColor="cyan" color="black" bold>
+          {" ♪ jukeboxdl "}
+        </Text>
+      )}
+      <Text> </Text>
+      {TABS.map((name, i) => {
+        const selected = name === tab;
+        const badge = name === "Downloads" && pending > 0 ? ` ${pending}` : "";
+        if (theme.retro) {
+          const label = name.toLowerCase();
+          return (
+            <Text key={name}>
+              <Text> </Text>
+              <Text color={selected ? theme.accent : theme.link} bold={selected}>
+                [ <Text color={theme.muted}>{i + 1}</Text>{" "}
+                <Text underline color={selected ? theme.accent : theme.link}>
+                  {label}
+                </Text>
+                {badge && <Text color={theme.notice}>{badge}</Text>} ]
+              </Text>
+            </Text>
+          );
+        }
+        return (
+          <Text key={name}>
+            <Text> </Text>
+            {selected ? (
+              <Text backgroundColor={theme.selectionBg} color="cyan" bold>
+                {` ${i + 1} ${name}${badge} `}
+              </Text>
+            ) : (
+              <Text>
+                <Text color={theme.muted}>{` ${i + 1} `}</Text>
+                {name}
+                <Text color="cyan">{badge} </Text>
+              </Text>
+            )}
+          </Text>
+        );
+      })}
+    </Box>
+  );
+}
+
+function Screens({
+  jukebox,
+  onQuit,
+  onThemeChange,
+}: {
+  jukebox: Jukebox;
+  onQuit: () => void;
+  onThemeChange: (name: ThemeName) => void;
+}) {
+  const theme = useTheme();
   const { columns, rows } = useWindowSize();
   const [tab, setTab] = useState<Tab>("Buscar");
   // Quais telas estão com um campo de texto focado (aí números e esc vão para o campo).
@@ -84,39 +148,16 @@ export function Main({ jukebox, onQuit }: { jukebox: Jukebox; onQuit: () => void
           running.reduce((sum, j) => sum + j.progress, 0)) /
         (summary.total - summary.canceled || 1)
       : 0;
+  const onConfigSaved = (config: Config) => onThemeChange(config.theme);
 
   return (
     <Box flexDirection="column" width={columns} height={rows}>
-      <Box>
-        <Text backgroundColor="cyan" color="black" bold>
-          {" ♪ jukeboxdl "}
-        </Text>
-        <Text> </Text>
-        {TABS.map((name, i) => {
-          const selected = name === tab;
-          const badge =
-            name === "Downloads" && summary.active + summary.queued > 0
-              ? ` ${summary.active + summary.queued}`
-              : "";
-          return (
-            <Text key={name}>
-              <Text> </Text>
-              {selected ? (
-                <Text backgroundColor={SELECTION_BG} color="cyan" bold>
-                  {` ${i + 1} ${name}${badge} `}
-                </Text>
-              ) : (
-                <Text>
-                  <Text dimColor>{` ${i + 1} `}</Text>
-                  {name}
-                  <Text color="cyan">{badge} </Text>
-                </Text>
-              )}
-            </Text>
-          );
-        })}
-      </Box>
-      <Text dimColor>{"─".repeat(Math.max(0, columns))}</Text>
+      <Header tab={tab} pending={summary.active + summary.queued} />
+      {theme.retro ? (
+        <GradientRule width={columns} />
+      ) : (
+        <Text color={theme.muted}>{"─".repeat(columns)}</Text>
+      )}
 
       <Box flexDirection="column" height={height} overflow="hidden">
         {/* As telas ficam montadas para preservar o estado ao trocar de aba. */}
@@ -124,7 +165,7 @@ export function Main({ jukebox, onQuit }: { jukebox: Jukebox; onQuit: () => void
           <SearchScreen
             jukebox={jukebox}
             active={tab === "Buscar"}
-            height={height - 4}
+            height={height}
             onFlash={showFlash}
             onCaptureChange={captureSetters.Buscar}
           />
@@ -134,14 +175,14 @@ export function Main({ jukebox, onQuit }: { jukebox: Jukebox; onQuit: () => void
             jukebox={jukebox}
             jobs={jobs}
             active={tab === "Downloads"}
-            height={height - 2}
+            height={height}
           />
         </Box>
         <Box display={tab === "Histórico" ? "flex" : "none"} flexDirection="column" flexGrow={1}>
           <HistoryScreen
             jukebox={jukebox}
             active={tab === "Histórico"}
-            height={height - 2}
+            height={height}
             refreshKey={summary.done}
             onCaptureChange={captureSetters.Histórico}
           />
@@ -152,14 +193,17 @@ export function Main({ jukebox, onQuit }: { jukebox: Jukebox; onQuit: () => void
             active={tab === "Config"}
             onEditingChange={captureSetters.Config}
             onFlash={showFlash}
+            onSaved={onConfigSaved}
           />
         </Box>
       </Box>
 
-      <Text dimColor>{"─".repeat(Math.max(0, columns))}</Text>
+      <Text color={theme.retro ? theme.bevelDark : theme.muted}>
+        {"─".repeat(Math.max(0, columns))}
+      </Text>
       <Box>
         {flash ? (
-          <Text color={confirmQuit ? "yellow" : "green"}>{flash}</Text>
+          <Text color={confirmQuit ? theme.warning : theme.success}>{flash}</Text>
         ) : (
           <Box gap={2}>
             {busy && <ProgressBar value={overall} width={20} />}
@@ -167,6 +211,17 @@ export function Main({ jukebox, onQuit }: { jukebox: Jukebox; onQuit: () => void
           </Box>
         )}
       </Box>
+
+      {tab !== "Downloads" && columns >= 90 && <TapeDeck jobs={jobs} bottom={5} />}
     </Box>
+  );
+}
+
+export function Main({ jukebox, onQuit }: { jukebox: Jukebox; onQuit: () => void }) {
+  const [themeName, setThemeName] = useState<ThemeName>(jukebox.config.theme);
+  return (
+    <ThemeProvider name={themeName}>
+      <Screens jukebox={jukebox} onQuit={onQuit} onThemeChange={setThemeName} />
+    </ThemeProvider>
   );
 }

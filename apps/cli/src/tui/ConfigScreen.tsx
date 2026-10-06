@@ -1,5 +1,6 @@
 import {
   CONFIG_FIELDS,
+  type Config,
   ConfigError,
   type ConfigField,
   formatConfigValue,
@@ -14,18 +15,21 @@ import {
 } from "@jukeboxdl/core";
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
+import { Panel } from "../components/Panel";
 import { TextInput } from "../components/TextInput";
 import { KeyHints } from "./KeyHints";
 import { useCursor } from "./list";
-import { SELECTION_BG } from "./theme";
+import { Pointer } from "./Pointer";
+import { useTheme } from "./theme";
 
 function TemplatePreview({ template }: { template: string }) {
+  const theme = useTheme();
   const issues = validateTemplate(template);
-  if (issues.length > 0) return <Text color="red">✖ {issues[0]?.message}</Text>;
+  if (issues.length > 0) return <Text color={theme.danger}>✖ {issues[0]?.message}</Text>;
   return (
     <Text>
-      <Text dimColor>exemplo: </Text>
-      <Text color="green">{renderTemplate(template, SAMPLE_TRACK)}</Text>
+      <Text color={theme.muted}>exemplo: </Text>
+      <Text color={theme.success}>{renderTemplate(template, SAMPLE_TRACK)}</Text>
     </Text>
   );
 }
@@ -35,12 +39,15 @@ export function ConfigScreen({
   active,
   onEditingChange,
   onFlash,
+  onSaved,
 }: {
   jukebox: Jukebox;
   active: boolean;
   onEditingChange: (editing: boolean) => void;
   onFlash: (message: string) => void;
+  onSaved: (config: Config) => void;
 }) {
+  const theme = useTheme();
   const [config, setConfig] = useState(jukebox.config);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -54,6 +61,7 @@ export function ConfigScreen({
       await saveConfig(next);
       setConfig(next);
       jukebox.setConfig(next);
+      onSaved(next);
       setError(null);
       onFlash(
         key.startsWith("binaries.")
@@ -92,7 +100,9 @@ export function ConfigScreen({
         const choices = field.choices ?? [];
         const step = key.leftArrow ? -1 : 1;
         const next =
-          choices[(choices.indexOf(value as number) + step + choices.length) % choices.length];
+          choices[
+            (choices.indexOf(value as number | string) + step + choices.length) % choices.length
+          ];
         void save(field.key, String(next));
       } else if (key.return) {
         setDraft(value === undefined ? "" : String(value));
@@ -107,62 +117,80 @@ export function ConfigScreen({
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Box flexDirection="column" flexGrow={1}>
-        {CONFIG_FIELDS.map((f, i) => {
-          const selected = i === cursor.index;
-          const isEditing = editing === f.key;
-          return (
-            <Box key={f.key} flexDirection="column">
-              <Box {...(selected && { backgroundColor: SELECTION_BG })}>
-                <Text color="cyan">{selected ? "❯ " : "  "}</Text>
-                <Box width={labelWidth} flexShrink={0}>
-                  <Text bold={selected}>{f.label}</Text>
+      <Panel
+        title="config"
+        right={<Text color={theme.meta}>{getAppPaths().configFile}</Text>}
+        flexGrow={1}
+      >
+        <Box flexDirection="column" flexGrow={1}>
+          {CONFIG_FIELDS.map((f, i) => {
+            const selected = i === cursor.index;
+            const isEditing = editing === f.key;
+            const value = getConfigValue(config, f.key);
+            return (
+              <Box key={f.key} flexDirection="column">
+                <Box {...(selected && { backgroundColor: theme.selectionBg })}>
+                  <Pointer selected={selected} />
+                  <Box width={labelWidth} flexShrink={0}>
+                    <Text
+                      bold={selected}
+                      {...(theme.retro && { color: selected ? "#ffffff" : theme.link })}
+                    >
+                      {f.label}
+                    </Text>
+                  </Box>
+                  {isEditing ? (
+                    <TextInput
+                      value={draft}
+                      onChange={setDraft}
+                      onSubmit={async (text) => {
+                        if (await save(f.key, text)) stopEditing();
+                      }}
+                      focus={active}
+                    />
+                  ) : (
+                    <Text
+                      color={
+                        f.type === "boolean"
+                          ? value
+                            ? theme.success
+                            : theme.muted
+                          : theme.retro
+                            ? theme.notice
+                            : "white"
+                      }
+                      wrap="truncate-end"
+                    >
+                      {f.type === "choice" && selected
+                        ? `‹ ${formatConfigValue(value)} ›`
+                        : formatConfigValue(value)}
+                    </Text>
+                  )}
                 </Box>
-                {isEditing ? (
-                  <TextInput
-                    value={draft}
-                    onChange={setDraft}
-                    onSubmit={async (value) => {
-                      if (await save(f.key, value)) stopEditing();
-                    }}
-                    focus={active}
-                  />
-                ) : (
-                  <Text
-                    {...(f.type === "boolean" && {
-                      color: getConfigValue(config, f.key) ? "green" : "gray",
-                    })}
-                    wrap="truncate-end"
-                  >
-                    {formatConfigValue(getConfigValue(config, f.key))}
-                  </Text>
+                {f.type === "template" && (selected || isEditing) && (
+                  <Box paddingLeft={labelWidth + 2}>
+                    <TemplatePreview template={isEditing ? draft : String(value)} />
+                  </Box>
                 )}
               </Box>
-              {f.type === "template" && (selected || isEditing) && (
-                <Box paddingLeft={labelWidth + 2}>
-                  <TemplatePreview
-                    template={isEditing ? draft : String(getConfigValue(config, f.key))}
-                  />
-                </Box>
-              )}
-            </Box>
-          );
-        })}
-      </Box>
-
-      <Box flexDirection="column" marginTop={1}>
-        {error ? <Text color="red">✖ {error}</Text> : <Text dimColor>{field.description}</Text>}
-        {field.type === "template" && (
-          <Text dimColor>
-            Variáveis:{" "}
-            {"{title} {artist} {album} {track} {year} {playlist} {index} {uploader} {id}"} ·{" "}
-            {"{track:02}"} zeros · {"{album|Singles}"} padrão · / pastas
-          </Text>
-        )}
-        <Text dimColor wrap="truncate-start">
-          {getAppPaths().configFile}
-        </Text>
-      </Box>
+            );
+          })}
+        </Box>
+        <Box flexDirection="column" marginTop={1}>
+          {error ? (
+            <Text color={theme.danger}>✖ {error}</Text>
+          ) : (
+            <Text color={theme.muted}>{field.description}</Text>
+          )}
+          {field.type === "template" && (
+            <Text color={theme.muted}>
+              variáveis:{" "}
+              {"{title} {artist} {album} {track} {year} {playlist} {index} {uploader} {id}"} ·{" "}
+              {"{track:02}"} zeros · {"{album|Singles}"} padrão · / pastas
+            </Text>
+          )}
+        </Box>
+      </Panel>
       <Box marginTop={1}>
         {editing ? (
           <KeyHints
@@ -176,10 +204,10 @@ export function ConfigScreen({
             hints={[
               ["↑↓", "navegar"],
               [
-                "enter",
+                field.type === "choice" ? "←→" : "enter",
                 field.type === "boolean" || field.type === "choice" ? "alternar" : "editar",
               ],
-              ["tab", "próxima aba"],
+              ["1-4", "abas"],
             ]}
           />
         )}

@@ -14,6 +14,7 @@ import { Spinner } from "../components/Spinner";
 import { isUrl, parseItems } from "../lib/format";
 import { fail, loadConfigOrFail, openJukebox } from "../lib/session";
 import { useQueueJobs } from "../lib/use-queue";
+import { ThemeProvider } from "../tui/theme";
 
 export interface GetOptions {
   output?: string;
@@ -210,9 +211,14 @@ export async function getCommand(inputs: string[], options: GetOptions): Promise
   }
   const config = applyOverrides(await loadConfigOrFail(), options);
   const jukebox = await openJukebox(config);
-  const app = render(<GetApp jukebox={jukebox} inputs={inputs} options={options} />, {
-    exitOnCtrlC: false,
-  });
+  const app = render(
+    <ThemeProvider name={config.theme}>
+      <GetApp jukebox={jukebox} inputs={inputs} options={options} />
+    </ThemeProvider>,
+    {
+      exitOnCtrlC: false,
+    },
+  );
   try {
     await app.waitUntilExit();
   } finally {

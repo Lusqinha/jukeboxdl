@@ -52,6 +52,8 @@ export function ScrollHint({
   length: number;
   position: "above" | "below";
 }) {
+  // Lista que cabe inteira na tela não precisa de indicadores (nem da linha reservada).
+  if (length <= pageSize) return null;
   const count = position === "above" ? start : Math.max(0, length - start - pageSize);
   return (
     <Box height={1} paddingLeft={4}>

@@ -1,9 +1,11 @@
 import { expandHome, type Job, type Jukebox } from "@jukeboxdl/core";
-import { Box, Text, useInput } from "ink";
-import { JobRow } from "../components/JobRow";
+import { Box, Text, useInput, useWindowSize } from "ink";
+import { JobRow, JobSummary } from "../components/JobRow";
+import { Panel, panelChrome } from "../components/Panel";
+import { StarBackdrop } from "../components/Starfield";
 import { KeyHints } from "./KeyHints";
 import { ScrollHint, useCursor } from "./list";
-import { SELECTION_BG } from "./theme";
+import { useTheme } from "./theme";
 
 export function DownloadsScreen({
   jukebox,
@@ -16,7 +18,10 @@ export function DownloadsScreen({
   active: boolean;
   height: number;
 }) {
-  const pageSize = Math.max(3, height - 4);
+  const theme = useTheme();
+  const { columns } = useWindowSize();
+  // Moldura + indicadores de rolagem (2) + atalhos (2).
+  const pageSize = Math.max(3, height - panelChrome(theme, true) - 4);
   const cursor = useCursor(jobs.length, pageSize);
   const selected = jobs[cursor.index];
 
@@ -34,37 +39,49 @@ export function DownloadsScreen({
   );
 
   const outputDir = expandHome(jukebox.config.outputDir);
+  const emptyHeight = Math.max(3, height - panelChrome(theme, true) - 2);
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      {jobs.length === 0 ? (
-        <Box paddingX={2} paddingY={1} flexGrow={1}>
-          <Text dimColor>Nenhum download ainda. Busque algo na aba Buscar e tecle enter.</Text>
-        </Box>
-      ) : (
-        <Box flexDirection="column" flexGrow={1}>
-          <ScrollHint
-            start={cursor.start}
-            pageSize={pageSize}
-            length={jobs.length}
-            position="above"
-          />
-          {jobs.slice(cursor.start, cursor.start + pageSize).map((job, i) => {
-            const selected = cursor.start + i === cursor.index;
-            return (
-              <Box key={job.id} {...(selected && { backgroundColor: SELECTION_BG })}>
-                <JobRow job={job} selected={selected} outputDir={outputDir} />
-              </Box>
-            );
-          })}
-          <ScrollHint
-            start={cursor.start}
-            pageSize={pageSize}
-            length={jobs.length}
-            position="below"
-          />
-        </Box>
-      )}
+      <Panel title="fila" right={jobs.length > 0 && <JobSummary jobs={jobs} />} flexGrow={1}>
+        {jobs.length === 0 ? (
+          <StarBackdrop
+            width={Math.max(10, columns - (theme.retro ? 4 : 0))}
+            height={emptyHeight}
+            contentWidth={60}
+            contentHeight={2}
+            seed={21}
+          >
+            <Text color={theme.notice}>
+              {theme.retro ? "★ fita vazia ★" : "Nenhum download ainda."}
+            </Text>
+            <Text color={theme.muted}>busque algo na aba buscar e tecle enter</Text>
+          </StarBackdrop>
+        ) : (
+          <Box flexDirection="column" flexGrow={1}>
+            <ScrollHint
+              start={cursor.start}
+              pageSize={pageSize}
+              length={jobs.length}
+              position="above"
+            />
+            {jobs.slice(cursor.start, cursor.start + pageSize).map((job, i) => {
+              const isSelected = cursor.start + i === cursor.index;
+              return (
+                <Box key={job.id} {...(isSelected && { backgroundColor: theme.selectionBg })}>
+                  <JobRow job={job} selected={isSelected} outputDir={outputDir} />
+                </Box>
+              );
+            })}
+            <ScrollHint
+              start={cursor.start}
+              pageSize={pageSize}
+              length={jobs.length}
+              position="below"
+            />
+          </Box>
+        )}
+      </Panel>
       <Box marginTop={1}>
         <KeyHints
           hints={[
@@ -73,7 +90,7 @@ export function DownloadsScreen({
             ["r", "tentar de novo"],
             ["R", "repetir falhas"],
             ["c", "limpar concluídos"],
-            ["tab", "próxima aba"],
+            ["1-4", "abas"],
           ]}
         />
       </Box>
