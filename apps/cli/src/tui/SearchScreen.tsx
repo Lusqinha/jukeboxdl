@@ -1,4 +1,12 @@
-import type { Jukebox, PlaylistItem, VideoSummary } from "@jukeboxdl/core";
+import {
+  applyFilters,
+  DEFAULT_FILTERS,
+  type DurationFilter,
+  type Jukebox,
+  type PlaylistItem,
+  type SearchFilters,
+  type VideoSummary,
+} from "@jukeboxdl/core";
 import { Box, Text, useInput, useWindowSize } from "ink";
 import { useEffect, useRef, useState } from "react";
 import { Panel, panelChrome } from "../components/Panel";
@@ -13,8 +21,20 @@ import { Pointer } from "./Pointer";
 import { useTheme } from "./theme";
 
 type Results =
-  | { kind: "search"; query: string; items: VideoSummary[] }
+  | { kind: "search"; query: string; items: VideoSummary[]; hasMore: boolean }
   | { kind: "playlist"; title: string; items: PlaylistItem[]; unavailable: number };
+
+const PAGE_SIZE = 20;
+/** Faltando esta quantidade de itens para o fim da lista, a próxima página é carregada. */
+const LOAD_MORE_THRESHOLD = 3;
+/** Letras que são atalhos na lista (as demais começam uma nova busca). */
+const LIST_SHORTCUTS = /^[acdfgjkpqvGU?/1-4]$/;
+
+const nextDuration: Record<DurationFilter, DurationFilter> = {
+  any: "short",
+  short: "long",
+  long: "any",
+};
 
 export function SearchScreen({
   jukebox,
@@ -22,24 +42,34 @@ export function SearchScreen({
   height,
   onFlash,
   onCaptureChange,
+  focusRequest,
+  outputDir,
 }: {
   jukebox: Jukebox;
   active: boolean;
   height: number;
   onFlash: (message: string) => void;
   onCaptureChange: (capturing: boolean) => void;
+  /** Muda quando outra parte da interface pede foco no campo de busca. */
+  focusRequest: number;
+  /** Pasta de destino da sessão, quando diferente da config. */
+  outputDir: string | null;
 }) {
   const [query, setQuery] = useState("");
   const [focus, setFocus] = useState<"input" | "list">("input");
   const [loading, setLoading] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Results | null>(null);
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
   const abort = useRef<AbortController | null>(null);
   const pending = useRef<string | null>(null);
 
-  const items: VideoSummary[] = results?.items ?? [];
+  const rawItems: VideoSummary[] = results?.items ?? [];
+  const items = results?.kind === "search" ? applyFilters(rawItems, filters) : rawItems;
+  const hidden = rawItems.length - items.length;
   const theme = useTheme();
   const { columns } = useWindowSize();
   // Campo (3) + moldura/cabeçalho dos resultados + indicadores de rolagem (2) + atalhos (2).
@@ -50,6 +80,17 @@ export function SearchScreen({
   useEffect(() => {
     onCaptureChange(focus === "input");
   }, [focus, onCaptureChange]);
+
+  useEffect(() => {
+    if (focusRequest > 0) setFocus("input");
+  }, [focusRequest]);
+
+  const markDownloaded = async (videos: VideoSummary[], signal: AbortSignal) => {
+    const flags = await Promise.all(videos.map((item) => jukebox.isDownloaded(item.id)));
+    if (signal.aborted) return;
+    const found = videos.filter((_, i) => flags[i]).map((item) => item.id);
+    if (found.length > 0) setDownloaded((d) => new Set([...d, ...found]));
+  };
 
   const submit = async (value: string) => {
     const text = value.trim();
@@ -71,7 +112,7 @@ export function SearchScreen({
       if (isUrl(text)) {
         const result = await jukebox.resolve(text, { signal: controller.signal });
         if (result.kind === "video") {
-          next = { kind: "search", query: text, items: [result.video] };
+          next = { kind: "search", query: text, items: [result.video], hasMore: false };
           initialMarks = new Set([result.video.id]);
         } else {
           next = {
@@ -89,21 +130,20 @@ export function SearchScreen({
           );
         }
       } else {
-        next = {
-          kind: "search",
-          query: text,
-          items: await jukebox.search(text, 20, controller.signal),
-        };
+        const page = await jukebox.searchPage(text, {
+          limit: PAGE_SIZE,
+          signal: controller.signal,
+        });
+        next = { kind: "search", query: text, items: page, hasMore: page.length === PAGE_SIZE };
       }
       if (controller.signal.aborted) return;
       lastQuery.current = text;
       setResults(next);
       setMarked(initialMarks);
+      setDownloaded(new Set());
       cursor.setIndex(0);
       setFocus(next.items.length > 0 ? "list" : "input");
-      const flags = await Promise.all(next.items.map((item) => jukebox.isDownloaded(item.id)));
-      if (!controller.signal.aborted)
-        setDownloaded(new Set(next.items.filter((_, i) => flags[i]).map((i) => i.id)));
+      await markDownloaded(next.items, controller.signal);
     } catch (err) {
       if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -114,27 +154,76 @@ export function SearchScreen({
     }
   };
 
-  const enqueue = () => {
-    if (!results) return;
+  // Paginação: perto do fim da lista (ou com poucos itens visíveis pelos filtros), busca mais.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dispara só pela posição na lista e pelos resultados
+  useEffect(() => {
+    if (results?.kind !== "search" || !results.hasMore || loadingMore || loading) return;
+    if (items.length - cursor.index > LOAD_MORE_THRESHOLD && items.length >= pageSize) return;
+    const controller = abort.current ?? new AbortController();
+    const current = results;
+    setLoadingMore(true);
+    jukebox
+      .searchPage(current.query, {
+        offset: current.items.length,
+        limit: PAGE_SIZE,
+        signal: controller.signal,
+      })
+      .then(async (page) => {
+        if (controller.signal.aborted) return;
+        const known = new Set(current.items.map((item) => item.id));
+        const fresh = page.filter((item) => !known.has(item.id));
+        setResults({
+          ...current,
+          items: [...current.items, ...fresh],
+          hasMore: page.length === PAGE_SIZE && fresh.length > 0,
+        });
+        await markDownloaded(fresh, controller.signal);
+      })
+      .catch((err: unknown) => {
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => setLoadingMore(false));
+  }, [results, cursor.index, items.length, pageSize, loading, loadingMore]);
+
+  const chosenItems = () => {
     const current = items[cursor.index];
-    const chosen =
-      marked.size > 0 ? items.filter((i) => marked.has(i.id)) : current ? [current] : [];
+    return marked.size > 0 ? items.filter((i) => marked.has(i.id)) : current ? [current] : [];
+  };
+
+  const enqueue = (splitChapters = false) => {
+    if (!results) return;
+    const chosen = chosenItems();
     if (chosen.length === 0) return;
-    if (results.kind === "playlist") jukebox.enqueuePlaylist(results, chosen as PlaylistItem[]);
-    else jukebox.enqueue(chosen);
-    onFlash(t("flash.queued", { n: chosen.length }));
+    jukebox.queue.add(
+      chosen.map((video) =>
+        results.kind === "playlist"
+          ? {
+              video,
+              playlist: results.title,
+              index: (video as PlaylistItem).index,
+              splitChapters,
+              outputDir: outputDir ?? undefined,
+            }
+          : { video, splitChapters, outputDir: outputDir ?? undefined },
+      ),
+    );
+    onFlash(
+      splitChapters
+        ? t("flash.chapters", { n: chosen.length })
+        : t("flash.queued", { n: chosen.length }),
+    );
     setMarked(new Set());
   };
 
   useInput(
     (input, key) => {
       if (focus === "input") {
-        if (key.downArrow && items.length > 0) setFocus("list");
-        if (key.escape && items.length > 0) setFocus("list");
+        // esc sempre sai do campo (libera os atalhos globais, mesmo sem resultados).
+        if (key.escape || (key.downArrow && items.length > 0)) setFocus("list");
         return;
       }
       if (key.upArrow && cursor.index === 0) return setFocus("input");
-      if (cursor.handleKey(key)) return;
+      if (cursor.handleKey(key, input)) return;
       if (key.return) return enqueue();
       if (key.escape || input === "/") return setFocus("input");
       const current = items[cursor.index];
@@ -152,7 +241,17 @@ export function SearchScreen({
         setMarked((m) => (m.size === items.length ? new Set() : new Set(items.map((i) => i.id))));
         return;
       }
-      // Qualquer outra letra volta para a busca e começa a digitar (números trocam de aba).
+      if (input === "p" && current) return void jukebox.player.toggle(current);
+      if (input === "c") return enqueue(true);
+      if (input === "f") {
+        setFilters((f) => ({ ...f, duration: nextDuration[f.duration] }));
+        return cursor.setIndex(0);
+      }
+      if (input === "v") {
+        setFilters((f) => ({ ...f, hideVersions: !f.hideVersions }));
+        return cursor.setIndex(0);
+      }
+      // Qualquer outra letra volta para a busca e começa a digitar.
       if (
         input &&
         !key.ctrl &&
@@ -160,7 +259,7 @@ export function SearchScreen({
         !key.tab &&
         input.length === 1 &&
         input >= " " &&
-        !/[1-4]/.test(input)
+        !LIST_SHORTCUTS.test(input)
       ) {
         setQuery(input);
         setFocus("input");
@@ -216,8 +315,14 @@ export function SearchScreen({
         return (
           <Box key={item.id} {...(selected && { backgroundColor: theme.selectionBg })}>
             <Pointer selected={selected} />
-            <Text color={isMarked ? theme.accent : theme.muted}>{isMarked ? "◉ " : "○ "}</Text>
-            {"index" in item && <Text color={theme.muted}>{String(item.index).padStart(3)} </Text>}
+            <Box width={2} flexShrink={0}>
+              <Text color={isMarked ? theme.accent : theme.muted}>{isMarked ? "◉" : "○"}</Text>
+            </Box>
+            {"index" in item && (
+              <Box width={4} flexShrink={0}>
+                <Text color={theme.muted}>{String(item.index).padStart(3)}</Text>
+              </Box>
+            )}
             <Box flexGrow={1} flexShrink={1}>
               <Text
                 wrap="truncate-end"
@@ -242,6 +347,12 @@ export function SearchScreen({
         );
       })}
       <ScrollHint start={cursor.start} pageSize={pageSize} length={items.length} position="below" />
+      {loadingMore && (
+        <Text color={theme.notice}>
+          {"    "}
+          <Spinner /> {t("search.loadingMore")}
+        </Text>
+      )}
     </Box>
   );
 
@@ -273,9 +384,20 @@ export function SearchScreen({
     </StarBackdrop>
   );
 
+  const filterLabels = [
+    filters.duration === "short"
+      ? t("filter.durationShort")
+      : filters.duration === "long"
+        ? t("filter.durationLong")
+        : null,
+    filters.hideVersions ? t("filter.hideVersions") : null,
+  ].filter(Boolean);
+
   const header = (
-    <Text color={theme.muted}>
+    <Text color={theme.muted} wrap="truncate-end">
       {summary}
+      {filterLabels.length > 0 && <Text color={theme.notice}> · {filterLabels.join(" · ")}</Text>}
+      {hidden > 0 && <Text color={theme.muted}> · {t("filter.hidden", { n: hidden })}</Text>}
       {marked.size > 0 && (
         <Text color={theme.accent}>{t("search.marked", { n: marked.size })}</Text>
       )}
@@ -325,9 +447,10 @@ export function SearchScreen({
                 marked.size > 0 ? t("key.downloadN", { n: marked.size }) : t("key.download"),
               ],
               [t("key.space"), t("key.mark")],
-              ["a", t("key.markAll")],
-              ["/", t("key.search")],
-              ["1-4", t("key.tabs")],
+              ["p", t("key.preview")],
+              ["c", t("key.chapters")],
+              ["f/v", t("key.filters")],
+              ["?", t("key.help")],
             ]}
           />
         )}

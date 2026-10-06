@@ -4,7 +4,7 @@
   "description": "Baixe músicas do YouTube como MP3 pelo terminal",
   "type": "module",
   "bin": {
-    "jukeboxdl": "./dist/index.js"
+    "jukeboxdl": "./dist/main.js"
   },
   "files": [
     "dist"
@@ -13,7 +13,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx src/index.tsx",
+    "dev": "tsx src/main.ts",
     "build": "tsup",
     "typecheck": "tsc --noEmit"
   },

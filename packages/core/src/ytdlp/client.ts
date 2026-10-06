@@ -90,9 +90,22 @@ export class YtDlp {
   }
 
   async search(query: string, limit = 10, signal?: AbortSignal): Promise<VideoSummary[]> {
+    return this.searchPage(query, { limit, ...(signal && { signal }) });
+  }
+
+  /** Uma página de resultados: `offset` resultados pulados, até `limit` novos. */
+  async searchPage(
+    query: string,
+    { offset = 0, limit = 20, signal }: { offset?: number; limit?: number; signal?: AbortSignal },
+  ): Promise<VideoSummary[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
-    return parseSearchResult(await this.json([`ytsearch${limit}:${trimmed}`], signal));
+    const end = offset + limit;
+    const args = [
+      `ytsearch${end}:${trimmed}`,
+      ...(offset > 0 ? ["--playlist-items", `${offset + 1}:${end}`] : []),
+    ];
+    return parseSearchResult(await this.json(args, signal));
   }
 
   /** Lê um link de vídeo ou playlist. Com `noPlaylist`, links `watch?v=…&list=…` viram só o vídeo. */

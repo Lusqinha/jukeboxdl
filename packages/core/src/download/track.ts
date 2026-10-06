@@ -23,6 +23,8 @@ export interface TrackRequest {
   splitChapters?: boolean | undefined;
   /** Baixa de novo mesmo que esteja no histórico, sobrescrevendo o arquivo. */
   redownload?: boolean | undefined;
+  /** Pasta de destino só deste download (ex.: um pendrive), no lugar da pasta da config. */
+  outputDir?: string | undefined;
 }
 
 export interface TrackResult {
@@ -124,7 +126,11 @@ export async function downloadTrack(
   request: TrackRequest,
   options: DownloadTrackOptions,
 ): Promise<TrackResult> {
-  const { ytdlp, ffmpeg, config, signal, onProgress } = options;
+  const { ytdlp, ffmpeg, signal, onProgress } = options;
+  const config = request.outputDir
+    ? { ...options.config, outputDir: request.outputDir }
+    : options.config;
+  options = { ...options, config };
   const format = config.audio.format;
   const workdir = await mkdtemp(join(tmpdir(), "jukeboxdl-"));
   try {

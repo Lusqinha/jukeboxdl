@@ -1,4 +1,12 @@
-import { detectLocale, loadConfig, setLocale } from "@jukeboxdl/core";
+import { join } from "node:path";
+import {
+  AUDIO_FORMATS,
+  detectLocale,
+  enableDebugLog,
+  getAppPaths,
+  loadConfig,
+  setLocale,
+} from "@jukeboxdl/core";
 import { Command, Option } from "commander";
 import { render } from "ink";
 import pkg from "../package.json" with { type: "json" };
@@ -13,7 +21,7 @@ import {
 import { depsInstallCommand, depsUpdateCommand } from "./commands/deps";
 import { doctorCommand } from "./commands/doctor";
 import { getCommand } from "./commands/get";
-import { historyListCommand, historyRemoveCommand } from "./commands/history";
+import { historyExportCommand, historyListCommand, historyRemoveCommand } from "./commands/history";
 import { searchCommand } from "./commands/search";
 import { t } from "./lib/i18n";
 import { App } from "./tui/App";
@@ -21,6 +29,8 @@ import { App } from "./tui/App";
 // O idioma precisa estar definido antes de montar os textos de ajuda.
 const savedConfig = await loadConfig().catch(() => undefined);
 setLocale(savedConfig?.language ?? detectLocale());
+
+const debugLogPath = join(getAppPaths().data, "jukeboxdl.log");
 
 async function tuiCommand(): Promise<void> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -41,6 +51,13 @@ const program = new Command()
   .version(pkg.version, "-v, --version", t("cli.version"))
   .helpOption("-h, --help", t("cli.help"))
   .helpCommand(t("cli.helpCommandArg"), t("cli.helpCommand"))
+  .option("--verbose", t("cli.verbose", { path: debugLogPath }))
+  .hook("preAction", () => {
+    if (program.opts().verbose || process.env.JUKEBOXDL_DEBUG) {
+      enableDebugLog(debugLogPath);
+      process.stderr.write(`${t("debug.logAt", { path: debugLogPath })}\n`);
+    }
+  })
   .action(tuiCommand);
 
 program
@@ -58,6 +75,8 @@ program
   .option("--no-playlist", t("cli.get.noPlaylist"))
   .option("-f, --force", t("cli.get.force"))
   .option("--no-cover", t("cli.get.noCover"))
+  .addOption(new Option("--format <format>", t("cli.get.format")).choices([...AUDIO_FORMATS]))
+  .option("--split-chapters", t("cli.get.splitChapters"))
   .action(getCommand);
 
 program
@@ -116,5 +135,15 @@ history
   .description(t("cli.history.remove"))
   .argument("<id>")
   .action(historyRemoveCommand);
+history
+  .command("export")
+  .description(t("cli.history.export"))
+  .addOption(
+    new Option("-f, --format <format>", t("cli.history.exportFormat"))
+      .choices(["csv", "json"])
+      .default("csv"),
+  )
+  .option("-o, --output <file>", t("cli.history.exportOutput"))
+  .action(historyExportCommand);
 
 await program.parseAsync();

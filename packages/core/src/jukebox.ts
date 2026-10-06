@@ -11,6 +11,7 @@ import { pathExists } from "./fs";
 import { History } from "./history/history";
 import { t } from "./i18n/messages";
 import { type AppPaths, getAppPaths } from "./paths";
+import { Player } from "./player";
 import { type JsRuntime, YtDlp } from "./ytdlp/client";
 import type { PlaylistItem, ResolveResult, VideoSummary } from "./ytdlp/types";
 
@@ -52,6 +53,8 @@ async function requireBinary(name: BinaryName, config: Config, paths: AppPaths):
 export class Jukebox {
   readonly queue: DownloadQueue;
 
+  readonly player: Player;
+
   private constructor(
     private currentConfig: Config,
     readonly ytdlp: YtDlp,
@@ -59,11 +62,13 @@ export class Jukebox {
     readonly history: History,
     private readonly persistQueue: boolean,
     retries: number,
+    ytDlpPath: string,
   ) {
     this.queue = new DownloadQueue(this.worker, {
       concurrency: currentConfig.concurrency,
       retries,
     });
+    this.player = new Player(ytdlp, ytDlpPath, ffmpeg);
     if (persistQueue) {
       this.queue.on("update", (job) => {
         if (job.status === "queued") this.history.saveQueued(job.id, job.request);
@@ -119,11 +124,19 @@ export class Jukebox {
       history,
       options.persistQueue ?? false,
       options.retries ?? 2,
+      ytDlp,
     );
   }
 
   search(query: string, limit?: number, signal?: AbortSignal): Promise<VideoSummary[]> {
     return this.ytdlp.search(query, limit, signal);
+  }
+
+  searchPage(
+    query: string,
+    options: { offset?: number; limit?: number; signal?: AbortSignal },
+  ): Promise<VideoSummary[]> {
+    return this.ytdlp.searchPage(query, options);
   }
 
   resolve(
@@ -147,6 +160,7 @@ export class Jukebox {
 
   /** Cancela os downloads e fecha o histórico. */
   async close(): Promise<void> {
+    this.player.stop();
     this.queue.cancelAll();
     await this.queue.onIdle();
     this.history.close();

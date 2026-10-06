@@ -1,4 +1,5 @@
-import { expandHome, type Job, type Jukebox } from "@jukeboxdl/core";
+import { dirname } from "node:path";
+import { expandHome, type Job, type Jukebox, openPath } from "@jukeboxdl/core";
 import { Box, Text, useInput, useWindowSize } from "ink";
 import { JobRow, JobSummary } from "../components/JobRow";
 import { Panel, panelChrome } from "../components/Panel";
@@ -28,13 +29,14 @@ export function DownloadsScreen({
 
   useInput(
     (input, key) => {
-      if (cursor.handleKey(key)) return;
+      if (cursor.handleKey(key, input)) return;
       const queue = jukebox.queue;
       if (input === "x" && selected) queue.cancel(selected.id);
       else if (input === "X") queue.cancelAll();
       else if (input === "r" && selected) queue.retry(selected.id);
       else if (input === "R") for (const job of jobs) queue.retry(job.id);
       else if (input === "c") queue.clearFinished();
+      else if (input === "o" && selected?.path) openPath(dirname(selected.path));
     },
     { isActive: active },
   );
@@ -95,7 +97,9 @@ export function DownloadsScreen({
             ["r", t("key.retry")],
             ["R", t("key.retryFailed")],
             ["c", t("key.clearDone")],
-            ["1-4", t("key.tabs")],
+            ["o", t("key.openFolder")],
+            ["d", t("key.destination")],
+            ["?", t("key.help")],
           ]}
         />
       </Box>

@@ -75,6 +75,15 @@ export function JobRow({
         </Text>
       );
       break;
+    case "retrying":
+      icon = <Text color={theme.warning}>↻</Text>;
+      detail = (
+        <Text color={theme.warning} wrap="truncate-end">
+          {t("job.retrying", { attempt: job.attempt ?? 2, total: 3 })}
+          {job.error ? ` · ${job.error}` : ""}
+        </Text>
+      );
+      break;
     case "done":
       icon = <Text color={theme.success}>✔</Text>;
       detail = (
@@ -124,7 +133,7 @@ export function summarize(jobs: Job[]) {
     jobs.filter((j) => statuses.includes(j.status)).length;
   return {
     total: jobs.length,
-    active: count("downloading", "converting", "tagging"),
+    active: count("downloading", "converting", "tagging", "retrying"),
     queued: count("queued"),
     done: count("done"),
     skipped: count("skipped"),

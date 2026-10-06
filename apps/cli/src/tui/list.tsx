@@ -25,15 +25,20 @@ export function useCursor(length: number, pageSize: number) {
     setIndex((i) => Math.min(i, Math.max(0, length - 1)));
   }, [length]);
 
-  const handleKey = (key: NavKey): boolean => {
+  /** Setas, page up/down, home/end e os equivalentes do vim: j/k, g/G, ctrl+d/ctrl+u. */
+  const handleKey = (key: NavKey & { ctrl?: boolean }, input = ""): boolean => {
     if (length === 0) return false;
     const last = length - 1;
-    if (key.upArrow) setIndex((i) => (i === 0 ? last : i - 1));
-    else if (key.downArrow) setIndex((i) => (i === last ? 0 : i + 1));
+    const half = Math.max(1, Math.floor(pageSize / 2));
+    if (key.upArrow || (input === "k" && !key.ctrl)) setIndex((i) => (i === 0 ? last : i - 1));
+    else if (key.downArrow || (input === "j" && !key.ctrl))
+      setIndex((i) => (i === last ? 0 : i + 1));
     else if (key.pageUp) setIndex((i) => Math.max(0, i - pageSize));
     else if (key.pageDown) setIndex((i) => Math.min(last, i + pageSize));
-    else if (key.home) setIndex(0);
-    else if (key.end) setIndex(last);
+    else if (key.ctrl && input === "u") setIndex((i) => Math.max(0, i - half));
+    else if (key.ctrl && input === "d") setIndex((i) => Math.min(last, i + half));
+    else if (key.home || input === "g") setIndex(0);
+    else if (key.end || input === "G") setIndex(last);
     else return false;
     return true;
   };

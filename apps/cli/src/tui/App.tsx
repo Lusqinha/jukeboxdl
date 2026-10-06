@@ -19,7 +19,7 @@ import { ThemeProvider } from "./theme";
 type State =
   | { phase: "loading" }
   | { phase: "setup"; report: BinaryReport; tasks: DepTask[] }
-  | { phase: "ready"; jukebox: Jukebox }
+  | { phase: "ready"; jukebox: Jukebox; restored: number }
   | { phase: "error"; message: string };
 
 /** Tempo mínimo da tela de boot, para a animação não piscar e sumir. */
@@ -48,9 +48,10 @@ export function App() {
         return;
       }
       step(0.8, t("boot.history"));
-      const jukebox = await Jukebox.create({ config });
+      const jukebox = await Jukebox.create({ config, persistQueue: true });
+      const restored = jukebox.restoreQueue();
       step(1, t("boot.ready"));
-      setState({ phase: "ready", jukebox });
+      setState({ phase: "ready", jukebox, restored });
     } catch (error) {
       const message =
         error instanceof ConfigError
@@ -105,7 +106,7 @@ export function App() {
           <SetupScreen report={state.report} tasks={state.tasks} onReady={load} onQuit={exit} />
         );
       case "ready":
-        return <Main jukebox={state.jukebox} onQuit={quit} />;
+        return <Main jukebox={state.jukebox} onQuit={quit} restored={state.restored} />;
       default:
         return null;
     }

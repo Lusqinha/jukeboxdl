@@ -148,6 +148,15 @@ export class DownloadQueue extends EventEmitter<QueueEvents> {
     this.pump();
   }
 
+  /** Altera o pedido dos trabalhos que ainda não começaram; retorna quantos mudaram. */
+  updateQueued(change: (request: TrackRequest) => TrackRequest): number {
+    for (const id of this.pending) {
+      const job = this.jobsById.get(id);
+      if (job) this.update(id, { request: change(job.request) });
+    }
+    return this.pending.length;
+  }
+
   /** Remove da lista os trabalhos já finalizados. */
   clearFinished(): void {
     for (const job of this.jobsById.values()) {

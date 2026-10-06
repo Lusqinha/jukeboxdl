@@ -1,6 +1,9 @@
-import type { HistoryEntry, Jukebox } from "@jukeboxdl/core";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { expandHome, type HistoryEntry, type Jukebox, openPath } from "@jukeboxdl/core";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
+import { historyToCsv } from "../commands/history";
 import { Panel, panelChrome } from "../components/Panel";
 import { TextInput } from "../components/TextInput";
 import { displayText } from "../lib/format";
@@ -16,6 +19,8 @@ export function HistoryScreen({
   height,
   refreshKey,
   onCaptureChange,
+  onFlash,
+  outputDir,
 }: {
   jukebox: Jukebox;
   active: boolean;
@@ -23,6 +28,8 @@ export function HistoryScreen({
   /** Muda quando um download termina, para recarregar a lista. */
   refreshKey: number;
   onCaptureChange: (capturing: boolean) => void;
+  onFlash: (message: string) => void;
+  outputDir: string | null;
 }) {
   const [filter, setFilter] = useState("");
   const [filtering, setFiltering] = useState(false);
@@ -43,19 +50,44 @@ export function HistoryScreen({
     onCaptureChange(filtering);
   }, [filtering, onCaptureChange]);
 
+  const exportCsv = async () => {
+    const file = join(
+      expandHome(jukebox.config.outputDir),
+      `jukeboxdl-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, historyToCsv(jukebox.history.list({ limit: 1_000_000 })));
+    onFlash(t("flash.exported", { path: file }));
+  };
+
   useInput(
     (input, key) => {
       if (filtering) {
         if (key.return || key.escape || key.downArrow) setFiltering(false);
         return;
       }
-      if (cursor.handleKey(key)) return;
+      if (cursor.handleKey(key, input)) return;
       const selected = entries[cursor.index];
       if (input === "/") setFiltering(true);
       else if (input === "d" && selected) {
         jukebox.history.remove(selected.videoId);
         setVersion((v) => v + 1);
-      } else if (key.escape && filter) setFilter("");
+      } else if (input === "o" && selected) openPath(dirname(selected.path));
+      else if (input === "r" && selected) {
+        jukebox.queue.add([
+          {
+            video: {
+              id: selected.videoId,
+              title: selected.title,
+              url: `https://www.youtube.com/watch?v=${selected.videoId}`,
+            },
+            redownload: true,
+            outputDir: outputDir ?? undefined,
+          },
+        ]);
+        onFlash(t("flash.queued", { n: 1 }));
+      } else if (input === "e") void exportCsv();
+      else if (key.escape && filter) setFilter("");
     },
     { isActive: active },
   );
@@ -131,8 +163,11 @@ export function HistoryScreen({
         <KeyHints
           hints={[
             ["/", t("key.filter")],
+            ["o", t("key.openFolder")],
+            ["r", t("key.redownload")],
+            ["e", t("key.export")],
             ["d", t("key.removeHistory")],
-            ["1-4", t("key.tabs")],
+            ["?", t("key.help")],
           ]}
         />
       </Box>

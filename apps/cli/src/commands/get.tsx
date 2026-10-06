@@ -5,7 +5,9 @@ import {
   FINISHED_STATUSES,
   type Job,
   type Jukebox,
+  notify,
   setConfigValue,
+  type VideoSummary,
 } from "@jukeboxdl/core";
 import { Box, render, Static, Text, useApp, useInput, useStdin } from "ink";
 import { useEffect, useRef, useState } from "react";
@@ -27,7 +29,12 @@ export interface GetOptions {
   playlist: boolean;
   force?: boolean;
   cover: boolean;
+  format?: string;
+  splitChapters?: boolean;
 }
+
+/** Downloads mais longos que isso disparam notificação do sistema ao terminar. */
+const NOTIFY_AFTER_MS = 30_000;
 
 type Line =
   | { key: string; kind: "log"; text: string; color?: string }
@@ -47,6 +54,9 @@ function GetApp({
   const { exit } = useApp();
   const { isRawModeSupported } = useStdin();
   const jobs = useQueueJobs(jukebox.queue);
+  const startedAt = useRef(Date.now());
+  const add = (videos: VideoSummary[]) =>
+    jukebox.queue.add(videos.map((video) => ({ video, splitChapters: options.splitChapters })));
   const [resolving, setResolving] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
   const [canceling, setCanceling] = useState(false);
@@ -77,12 +87,12 @@ function GetApp({
               continue;
             }
             log(t("get.searchResult", { query: input, title: video.title }));
-            jukebox.enqueue([video]);
+            add([video]);
             continue;
           }
           const result = await jukebox.resolve(input, { noPlaylist: !options.playlist });
           if (result.kind === "video") {
-            jukebox.enqueue([result.video]);
+            add([result.video]);
             continue;
           }
           let selected = result.items;
@@ -96,7 +106,14 @@ function GetApp({
             }) + extra,
             "cyan",
           );
-          jukebox.enqueuePlaylist(result, selected);
+          jukebox.queue.add(
+            selected.map((item) => ({
+              video: item,
+              playlist: result.title,
+              index: item.index,
+              splitChapters: options.splitChapters,
+            })),
+          );
         } catch (error) {
           log(`✖ ${input}: ${error instanceof Error ? error.message : String(error)}`, "red");
         }
@@ -109,6 +126,19 @@ function GetApp({
   useEffect(() => {
     if (resolved && jukebox.queue.isIdle) {
       const s = summarize(jobs);
+      if (
+        jukebox.config.notifications &&
+        s.total > 0 &&
+        Date.now() - startedAt.current > NOTIFY_AFTER_MS
+      ) {
+        notify(
+          t("notify.doneTitle"),
+          t("notify.doneBody", {
+            done: s.done,
+            failed: s.failed ? t("notify.failed", { n: s.failed }) : "",
+          }),
+        );
+      }
       process.exitCode =
         s.failed > 0 ||
         (s.total === 0 && lines.current.some((l) => l.kind === "log" && l.color === "red"))
@@ -192,6 +222,7 @@ function applyOverrides(config: Config, options: GetOptions): Config {
     ["concurrency", options.concurrency],
     ["skipDuplicates", options.force ? "false" : undefined],
     ["audio.embedCover", options.cover ? undefined : "false"],
+    ["audio.format", options.format],
   ];
   try {
     return overrides.reduce(
