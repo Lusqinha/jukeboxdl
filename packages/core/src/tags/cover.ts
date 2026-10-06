@@ -9,6 +9,7 @@ export interface PreparedCover {
 
 const SQUARE_SIZE = 600;
 const WIDE_WIDTH = 800;
+const WIDE_HEIGHT = 450;
 
 /**
  * Converte a thumbnail na capa final. Faixas do YouTube Music trazem a arte quadrada
@@ -24,15 +25,15 @@ export async function prepareCover(
   const path = join(workdir, "cover-final.jpg");
   const filter = square
     ? `crop='min(iw,ih)':'min(iw,ih)',scale=${SQUARE_SIZE}:${SQUARE_SIZE}`
-    : `scale=${WIDE_WIDTH}:-2`;
+    : `scale=${WIDE_WIDTH}:${WIDE_HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDE_WIDTH}:${WIDE_HEIGHT}:-1:-1`;
   const result = await runCommand(
     ffmpeg,
     ["-hide_banner", "-loglevel", "error", "-y", "-i", thumbnail, "-vf", filter, "-q:v", "2", path],
     { signal },
   );
   if (result.code !== 0) return undefined;
-  // A altura do quadro reduzido não é conhecida sem medir; 0 é aceito como "desconhecido".
+  // Tamanho sempre fixo: as dimensões vão no bloco de imagem do opus.
   return square
     ? { path, width: SQUARE_SIZE, height: SQUARE_SIZE }
-    : { path, width: WIDE_WIDTH, height: 0 };
+    : { path, width: WIDE_WIDTH, height: WIDE_HEIGHT };
 }
