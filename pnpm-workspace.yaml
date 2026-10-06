@@ -4,3 +4,7 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+
+# Traz binários pré-compilados; não precisa de node-gyp.
+ignoredBuiltDependencies:
+  - better-sqlite3

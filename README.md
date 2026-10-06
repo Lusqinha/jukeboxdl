@@ -7,7 +7,8 @@ Baixe músicas do YouTube como MP3 pelo terminal: busca, playlists, tags ID3 com
 ## Requisitos
 
 - Node.js 22 ou superior e pnpm 10 (versões fixadas em `mise.toml`)
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) e [ffmpeg](https://ffmpeg.org/): se não estiverem no `PATH`, o jukeboxdl pode baixar builds oficiais (com checksum verificado) para o diretório de dados
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) (versão recente) e [ffmpeg](https://ffmpeg.org/) com ffprobe: se não estiverem no `PATH`, o jukeboxdl pode baixar builds oficiais (com checksum verificado) para o diretório de dados
+- O próprio Node é passado ao yt-dlp como runtime JavaScript (`--js-runtimes`), exigido hoje para extrair do YouTube
 
 ## Desenvolvimento
 
@@ -24,8 +25,15 @@ pnpm build           # gera apps/cli/dist
 
 ```
 apps/cli         CLI (commander + Ink)
-packages/core    lógica independente de interface: config, binários, templates de nome
+packages/core    lógica independente de interface
+  ytdlp/         cliente do yt-dlp (busca, links, download com progresso)
+  tags/          metadados a partir do vídeo e gravação de ID3 + capa via ffmpeg
+  download/      pipeline de uma faixa e fila com concorrência/cancelamento
+  history/       histórico em SQLite (pula faixas já baixadas)
+  jukebox.ts     fachada usada pelas interfaces
 ```
+
+Arquivos de destino existentes nunca são sobrescritos. O histórico fica em `~/.local/share/jukeboxdl/history.db`, e uma faixa só é pulada se o arquivo registrado ainda existir.
 
 O `core` é consumido direto do código-fonte pelos bundlers (tsup, tsx, Vitest), então não tem etapa de build própria.
 
