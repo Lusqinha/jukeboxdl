@@ -23,6 +23,7 @@ export const CONFIG_FIELDS: readonly ConfigField[] = [
   { key: "audio.bitrate", type: "choice", choices: [128, 192, 256, 320] },
   { key: "audio.embedCover", type: "boolean" },
   { key: "audio.removeNonMusic", type: "boolean" },
+  { key: "audio.normalize", type: "boolean" },
   { key: "audio.replayGain", type: "boolean" },
   { key: "musicbrainz", type: "boolean" },
   { key: "concurrency", type: "number" },

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Downloads
+
+- Volume normalization, on by default: every track is adjusted to about -14 LUFS with a -1.5 dBTP peak ceiling. MP3 files get it during the single conversion yt-dlp already does. Opus and M4A files have to be re-encoded for this, so turn `audio.normalize` off if you prefer the original stream untouched.
+
 ## [0.1.0] - 2026-10-06
 
 First public release.

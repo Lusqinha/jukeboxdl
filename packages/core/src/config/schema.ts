@@ -39,6 +39,8 @@ export const configSchema = z.object({
       embedCover: z.boolean().default(true),
       /** Remove trechos sem música (falas, introduções) usando o SponsorBlock. */
       removeNonMusic: z.boolean().default(true),
+      /** Normaliza o volume do próprio áudio (alvo -14 LUFS); opus/m4a passam a ser recodificados. */
+      normalize: z.boolean().default(true),
       /** Grava tags ReplayGain para tocar tudo no mesmo volume. */
       replayGain: z.boolean().default(true),
     })

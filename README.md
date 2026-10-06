@@ -40,7 +40,7 @@ jukeboxdl is a front end for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffm
 - Save as MP3, or as Opus/M4A when you want the original YouTube audio without re-encoding.
 - Write ID3/Vorbis/MP4 tags. Artist and title come from YouTube Music metadata when it exists, from "Artist - Title" in the video title otherwise, and missing album, year and track number can be filled in from MusicBrainz.
 - Embed the cover. Tracks from YouTube Music get a square crop of the album art; regular videos keep the 16:9 frame.
-- Measure loudness and write ReplayGain tags (R128 for Opus).
+- Normalize the volume so every track plays at about the same level (around -14 LUFS), and write ReplayGain tags (R128 for Opus). For MP3 the adjustment happens in the same conversion; Opus and M4A get re-encoded when normalization is on.
 - Cut talking and intros with SponsorBlock, and split long mixes into one file per chapter.
 - Send a group of downloads to another folder or a USB drive without touching the default folder. Removable drives are detected with their free space.
 - Retry on network errors, check for yt-dlp updates once a day and update it from inside the app.
@@ -128,6 +128,7 @@ Settings live in `~/.config/jukeboxdl/config.json` and can be changed from the C
     "bitrate": 192,
     "embedCover": true,
     "removeNonMusic": true,
+    "normalize": true,
     "replayGain": true
   },
   "musicbrainz": true,

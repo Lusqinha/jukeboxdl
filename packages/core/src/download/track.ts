@@ -8,7 +8,7 @@ import { enrichFromMusicBrainz } from "../metadata/musicbrainz";
 import { expandHome } from "../paths";
 import { type PreparedCover, prepareCover } from "../tags/cover";
 import { cleanTitle, metadataFromInfo, splitArtistTitle } from "../tags/extract";
-import { measureLoudness, r128TrackGain, replayGainTags } from "../tags/loudness";
+import { measureLoudness, normalizeAudio, r128TrackGain, replayGainTags } from "../tags/loudness";
 import { writeTags } from "../tags/write";
 import { renderTemplate } from "../template/template";
 import type { YtDlp } from "../ytdlp/client";
@@ -94,6 +94,10 @@ async function finalize(
   workdir: string,
 ): Promise<void> {
   const format = config.audio.format;
+  if (config.audio.normalize && format !== "mp3") {
+    const normalized = join(workdir, `normalized-${basename(input)}`);
+    if (await normalizeAudio(ffmpeg, input, normalized, format, signal)) input = normalized;
+  }
   let extraTags: Record<string, string> | undefined;
   if (config.audio.replayGain) {
     const loudness = await measureLoudness(ffmpeg, input, signal);
@@ -157,6 +161,7 @@ export async function downloadTrack(
       bitrate: config.audio.bitrate,
       removeNonMusic: config.audio.removeNonMusic,
       splitChapters: split,
+      normalize: config.audio.normalize,
       signal,
       onProgress,
     });

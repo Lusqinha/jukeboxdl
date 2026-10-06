@@ -35,6 +35,9 @@ export const t = defineMessages({
     "field.audio.removeNonMusic.label": "Remover trechos sem música",
     "field.audio.removeNonMusic.description":
       "Corta falas e introduções usando o SponsorBlock (envia o id do vídeo para sponsor.ajay.app)",
+    "field.audio.normalize.label": "Normalizar volume",
+    "field.audio.normalize.description":
+      "Ajusta o áudio para -14 LUFS, todas as faixas no mesmo nível; em opus/m4a isso exige recodificar",
     "field.audio.replayGain.label": "ReplayGain",
     "field.audio.replayGain.description":
       "Mede o volume e grava tags para os players tocarem tudo no mesmo nível",
@@ -115,6 +118,9 @@ export const t = defineMessages({
     "field.audio.removeNonMusic.label": "Remove non-music parts",
     "field.audio.removeNonMusic.description":
       "Cuts talking and intros using SponsorBlock (sends the video id to sponsor.ajay.app)",
+    "field.audio.normalize.label": "Normalize volume",
+    "field.audio.normalize.description":
+      "Adjusts the audio to -14 LUFS so every track has the same level; opus/m4a need re-encoding for this",
     "field.audio.replayGain.label": "ReplayGain",
     "field.audio.replayGain.description":
       "Measures loudness and writes tags so players play everything at the same level",
