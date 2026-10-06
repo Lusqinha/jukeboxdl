@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { DownloadError } from "../errors";
+import { t } from "../i18n/messages";
 import { runCommand } from "../process";
 import {
   extractError,
@@ -57,13 +58,13 @@ export class YtDlp {
     );
     if (result.code !== 0) {
       throw new DownloadError(
-        extractError(result.stderr) ?? `yt-dlp saiu com código ${result.code}`,
+        extractError(result.stderr) ?? t("ytdlp.exitCode", { code: String(result.code) }),
       );
     }
     try {
       return JSON.parse(result.stdout) as YtDlpInfo;
     } catch {
-      throw new DownloadError("Resposta inesperada do yt-dlp (JSON inválido)");
+      throw new DownloadError(t("ytdlp.invalidJson"));
     }
   }
 
@@ -79,11 +80,11 @@ export class YtDlp {
     { noPlaylist = false, signal }: { noPlaylist?: boolean; signal?: AbortSignal } = {},
   ): Promise<ResolveResult> {
     if (!/^https?:\/\//i.test(url.trim())) {
-      throw new DownloadError(`Não parece um link: ${url}`);
+      throw new DownloadError(t("ytdlp.notUrl", { url }));
     }
     const json = await this.json([...(noPlaylist ? ["--no-playlist"] : []), url.trim()], signal);
     const result = parseResolveResult(json);
-    if (!result) throw new DownloadError(`Nenhum vídeo disponível em ${url}`);
+    if (!result) throw new DownloadError(t("ytdlp.noVideos", { url }));
     return result;
   }
 
@@ -124,7 +125,7 @@ export class YtDlp {
     });
     if (result.code !== 0) {
       throw new DownloadError(
-        extractError(result.stderr) ?? `yt-dlp saiu com código ${result.code}`,
+        extractError(result.stderr) ?? t("ytdlp.exitCode", { code: String(result.code) }),
       );
     }
 
@@ -133,7 +134,7 @@ export class YtDlp {
     const audio = find(".mp3");
     const info = find(".info.json");
     if (!audio || !info) {
-      throw new DownloadError("O yt-dlp terminou, mas o MP3 não foi gerado");
+      throw new DownloadError(t("ytdlp.noMp3"));
     }
     const cover = find(".jpg");
     return {

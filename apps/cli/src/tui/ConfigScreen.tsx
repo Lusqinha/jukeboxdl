@@ -3,12 +3,14 @@ import {
   type Config,
   ConfigError,
   type ConfigField,
+  fieldDescription,
+  fieldLabel,
   formatConfigValue,
   getAppPaths,
   getConfigValue,
   type Jukebox,
   renderTemplate,
-  SAMPLE_TRACK,
+  sampleTrack,
   saveConfig,
   setConfigValue,
   validateTemplate,
@@ -17,6 +19,7 @@ import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import { Panel } from "../components/Panel";
 import { TextInput } from "../components/TextInput";
+import { t } from "../lib/i18n";
 import { KeyHints } from "./KeyHints";
 import { useCursor } from "./list";
 import { Pointer } from "./Pointer";
@@ -29,7 +32,7 @@ function TemplatePreview({ template }: { template: string }) {
   return (
     <Text>
       <Text color={theme.muted}>exemplo: </Text>
-      <Text color={theme.success}>{renderTemplate(template, SAMPLE_TRACK)}</Text>
+      <Text color={theme.success}>{renderTemplate(template, sampleTrack())}</Text>
     </Text>
   );
 }
@@ -63,11 +66,7 @@ export function ConfigScreen({
       jukebox.setConfig(next);
       onSaved(next);
       setError(null);
-      onFlash(
-        key.startsWith("binaries.")
-          ? "Salvo; reabra o app para usar o novo binário"
-          : "Configuração salva",
-      );
+      onFlash(key.startsWith("binaries.") ? t("flash.savedRestart") : t("flash.saved"));
       return true;
     } catch (err) {
       setError(err instanceof ConfigError ? err.issues.join("; ") || err.message : String(err));
@@ -99,9 +98,11 @@ export function ConfigScreen({
       ) {
         const choices = field.choices ?? [];
         const step = key.leftArrow ? -1 : 1;
+        // Campo opcional sem valor corresponde à escolha "auto".
+        const current = value === undefined && field.optional ? "auto" : value;
         const next =
           choices[
-            (choices.indexOf(value as number | string) + step + choices.length) % choices.length
+            (choices.indexOf(current as number | string) + step + choices.length) % choices.length
           ];
         void save(field.key, String(next));
       } else if (key.return) {
@@ -113,13 +114,17 @@ export function ConfigScreen({
     { isActive: active },
   );
 
-  const labelWidth = Math.max(...CONFIG_FIELDS.map((f) => f.label.length)) + 2;
+  const labelWidth = Math.max(...CONFIG_FIELDS.map((f) => fieldLabel(f).length)) + 2;
 
   return (
     <Box flexDirection="column" flexGrow={1}>
       <Panel
-        title="config"
-        right={<Text color={theme.meta}>{getAppPaths().configFile}</Text>}
+        title={t("panel.config")}
+        right={
+          <Text color={theme.meta} wrap="truncate-start">
+            {getAppPaths().configFile}
+          </Text>
+        }
         flexGrow={1}
       >
         <Box flexDirection="column" flexGrow={1}>
@@ -136,7 +141,7 @@ export function ConfigScreen({
                       bold={selected}
                       {...(theme.retro && { color: selected ? "#ffffff" : theme.link })}
                     >
-                      {f.label}
+                      {fieldLabel(f)}
                     </Text>
                   </Box>
                   {isEditing ? (
@@ -180,13 +185,14 @@ export function ConfigScreen({
           {error ? (
             <Text color={theme.danger}>✖ {error}</Text>
           ) : (
-            <Text color={theme.muted}>{field.description}</Text>
+            <Text color={theme.muted}>{fieldDescription(field)}</Text>
           )}
           {field.type === "template" && (
             <Text color={theme.muted}>
-              variáveis:{" "}
+              {t("config.variables")}:{" "}
               {"{title} {artist} {album} {track} {year} {playlist} {index} {uploader} {id}"} ·{" "}
-              {"{track:02}"} zeros · {"{album|Singles}"} padrão · / pastas
+              {"{track:02}"} {t("config.zeros")} · {"{album|Singles}"} {t("config.default")} · /{" "}
+              {t("config.folders")}
             </Text>
           )}
         </Box>
@@ -195,19 +201,21 @@ export function ConfigScreen({
         {editing ? (
           <KeyHints
             hints={[
-              ["enter", "salvar"],
-              ["esc", "cancelar"],
+              ["enter", t("key.save")],
+              ["esc", t("key.cancel")],
             ]}
           />
         ) : (
           <KeyHints
             hints={[
-              ["↑↓", "navegar"],
+              ["↑↓", t("key.navigate")],
               [
                 field.type === "choice" ? "←→" : "enter",
-                field.type === "boolean" || field.type === "choice" ? "alternar" : "editar",
+                field.type === "boolean" || field.type === "choice"
+                  ? t("key.toggle")
+                  : t("key.edit"),
               ],
-              ["1-4", "abas"],
+              ["1-4", t("key.tabs")],
             ]}
           />
         )}

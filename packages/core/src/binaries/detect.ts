@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import type { Config } from "../config/schema";
 import { BinaryError } from "../errors";
+import { t } from "../i18n/messages";
 import { type AppPaths, expandHome, getAppPaths } from "../paths";
 import { type BinaryName, executableName } from "./platform";
 import { isExecutable, which } from "./which";
@@ -56,7 +57,7 @@ export async function detectBinary(
   if (configured) {
     const path = expandHome(configured);
     if (!(await isExecutable(path))) {
-      throw new BinaryError(`O caminho configurado para o ${name} não é um executável: ${path}`);
+      throw new BinaryError(t("binary.notExecutable", { name, path }));
     }
     return { name, path, source: "config", version: await readVersion(name, path) };
   }

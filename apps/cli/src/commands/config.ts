@@ -7,11 +7,12 @@ import {
   getAppPaths,
   getConfigValue,
   renderTemplate,
-  SAMPLE_TRACK,
+  sampleTrack,
   saveConfig,
   setConfigValue,
   validateTemplate,
 } from "@jukeboxdl/core";
+import { t } from "../lib/i18n";
 import { fail, loadConfigOrFail } from "../lib/session";
 
 function handle<T>(fn: () => T): T {
@@ -51,7 +52,9 @@ export async function configSetCommand(key: string, value: string): Promise<void
   await saveConfig(next);
   console.log(`✔ ${key} = ${formatConfigValue(getConfigValue(next, key))}`);
   if (findConfigField(key).type === "template") {
-    console.log(`  exemplo: ${renderTemplate(String(getConfigValue(next, key)), SAMPLE_TRACK)}`);
+    console.log(
+      `  ${t("config.example")}: ${renderTemplate(String(getConfigValue(next, key)), sampleTrack())}`,
+    );
   }
 }
 
@@ -68,10 +71,16 @@ export async function configUnsetCommand(key: string): Promise<void> {
 export function configPreviewCommand(template: string): void {
   const issues = validateTemplate(template);
   if (issues.length > 0) {
-    fail(issues.map((issue) => `${issue.message} (posição ${issue.position + 1})`).join("\n  "));
+    fail(
+      issues
+        .map((issue) =>
+          t("config.position", { message: issue.message, position: issue.position + 1 }),
+        )
+        .join("\n  "),
+    );
   }
-  console.log(renderTemplate(template, SAMPLE_TRACK));
-  console.log(`\x1b[2m(exemplo com ${JSON.stringify(SAMPLE_TRACK)})\x1b[0m`);
+  console.log(renderTemplate(template, sampleTrack()));
+  console.log(`\x1b[2m${t("config.exampleWith", { track: JSON.stringify(sampleTrack()) })}\x1b[0m`);
 }
 
 export function configPathCommand(): void {

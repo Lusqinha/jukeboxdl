@@ -8,6 +8,7 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream } from "node:stream/web";
 import { promisify } from "node:util";
 import { DownloadError, UnsupportedPlatformError } from "../errors";
+import { t } from "../i18n/messages";
 import { type AppPaths, getAppPaths } from "../paths";
 import {
   currentPlatform,
@@ -48,7 +49,8 @@ export function parseChecksums(text: string): Map<string, string> {
 
 async function fetchOk(fetchImpl: typeof fetch, url: string, signal?: AbortSignal) {
   const response = await fetchImpl(url, signal ? { signal } : {});
-  if (!response.ok) throw new DownloadError(`Falha ao baixar ${url}: HTTP ${response.status}`);
+  if (!response.ok)
+    throw new DownloadError(t("install.httpError", { url, status: response.status }));
   return response;
 }
 
@@ -60,7 +62,7 @@ async function expectedChecksum(
 ): Promise<string> {
   const sums = parseChecksums(await (await fetchOk(fetchImpl, url, signal)).text());
   const hash = sums.get(asset);
-  if (!hash) throw new DownloadError(`Checksum de ${asset} não encontrado em ${url}`);
+  if (!hash) throw new DownloadError(t("install.checksumMissing", { asset, url }));
   return hash;
 }
 
@@ -72,7 +74,7 @@ async function downloadVerified(
   { fetch: fetchImpl = fetch, onProgress, signal }: InstallOptions,
 ): Promise<void> {
   const response = await fetchOk(fetchImpl, url, signal);
-  if (!response.body) throw new DownloadError(`Resposta vazia ao baixar ${url}`);
+  if (!response.body) throw new DownloadError(t("install.emptyResponse", { url }));
 
   const total = Number(response.headers.get("content-length")) || null;
   const hash = createHash("sha256");
@@ -95,9 +97,7 @@ async function downloadVerified(
 
   const actual = hash.digest("hex");
   if (actual !== expectedHash) {
-    throw new DownloadError(
-      `Checksum não confere para ${url} (esperado ${expectedHash}, obtido ${actual})`,
-    );
+    throw new DownloadError(t("install.checksumMismatch", { url, expected: expectedHash, actual }));
   }
 }
 
@@ -111,7 +111,7 @@ export async function installYtDlp(options: InstallOptions = {}): Promise<string
   const asset = ytDlpAsset(platformInfo);
   if (!asset) {
     throw new UnsupportedPlatformError(
-      `Não há build do yt-dlp para ${platformInfo.platform}/${platformInfo.arch}. Instale pelo gerenciador de pacotes do sistema.`,
+      t("install.noYtDlpBuild", { platform: `${platformInfo.platform}/${platformInfo.arch}` }),
     );
   }
 
@@ -143,11 +143,12 @@ export async function installFfmpeg(
   const asset = ffmpegAsset(platformInfo);
   if (!asset) {
     const hint =
-      platformInfo.platform === "darwin"
-        ? "No macOS, instale com `brew install ffmpeg`."
-        : "Instale o ffmpeg pelo gerenciador de pacotes do sistema.";
+      platformInfo.platform === "darwin" ? t("install.ffmpegMacHint") : t("install.ffmpegHint");
     throw new UnsupportedPlatformError(
-      `Não há build do ffmpeg para ${platformInfo.platform}/${platformInfo.arch}. ${hint}`,
+      t("install.noFfmpegBuild", {
+        platform: `${platformInfo.platform}/${platformInfo.arch}`,
+        hint,
+      }),
     );
   }
 
@@ -194,7 +195,6 @@ export async function latestYtDlpVersion(
     ...(signal && { signal }),
   });
   const version = /\/tag\/([^/?#]+)/.exec(response.url)?.[1];
-  if (!version)
-    throw new DownloadError("Não foi possível descobrir a versão mais recente do yt-dlp");
+  if (!version) throw new DownloadError(t("install.latestUnknown"));
   return decodeURIComponent(version);
 }

@@ -10,6 +10,7 @@ export * from "./download/track";
 export * from "./errors";
 export { moveFile, pathExists } from "./fs";
 export * from "./history/history";
+export * from "./i18n";
 export * from "./jukebox";
 export type { TrackMetadata } from "./metadata";
 export * from "./paths";

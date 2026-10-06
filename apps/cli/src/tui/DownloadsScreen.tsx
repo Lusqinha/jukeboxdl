@@ -3,6 +3,7 @@ import { Box, Text, useInput, useWindowSize } from "ink";
 import { JobRow, JobSummary } from "../components/JobRow";
 import { Panel, panelChrome } from "../components/Panel";
 import { StarBackdrop } from "../components/Starfield";
+import { t } from "../lib/i18n";
 import { KeyHints } from "./KeyHints";
 import { ScrollHint, useCursor } from "./list";
 import { useTheme } from "./theme";
@@ -43,7 +44,11 @@ export function DownloadsScreen({
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Panel title="fila" right={jobs.length > 0 && <JobSummary jobs={jobs} />} flexGrow={1}>
+      <Panel
+        title={t("panel.queue")}
+        right={jobs.length > 0 && <JobSummary jobs={jobs} />}
+        flexGrow={1}
+      >
         {jobs.length === 0 ? (
           <StarBackdrop
             width={Math.max(10, columns - (theme.retro ? 4 : 0))}
@@ -53,9 +58,9 @@ export function DownloadsScreen({
             seed={21}
           >
             <Text color={theme.notice}>
-              {theme.retro ? "★ fita vazia ★" : "Nenhum download ainda."}
+              {theme.retro ? t("downloads.emptyNeon") : t("downloads.empty")}
             </Text>
-            <Text color={theme.muted}>busque algo na aba buscar e tecle enter</Text>
+            <Text color={theme.muted}>{t("downloads.emptyHint")}</Text>
           </StarBackdrop>
         ) : (
           <Box flexDirection="column" flexGrow={1}>
@@ -85,12 +90,12 @@ export function DownloadsScreen({
       <Box marginTop={1}>
         <KeyHints
           hints={[
-            ["x", "cancelar"],
-            ["X", "cancelar todos"],
-            ["r", "tentar de novo"],
-            ["R", "repetir falhas"],
-            ["c", "limpar concluídos"],
-            ["1-4", "abas"],
+            ["x", t("key.cancel")],
+            ["X", t("key.cancelAll")],
+            ["r", t("key.retry")],
+            ["R", t("key.retryFailed")],
+            ["c", t("key.clearDone")],
+            ["1-4", t("key.tabs")],
           ]}
         />
       </Box>

@@ -51,12 +51,18 @@ export function Panel({
       {title && (
         <>
           <Box>
-            <Text color={theme.accent}>
-              {"// "}
-              {title}
-            </Text>
+            <Box flexShrink={0}>
+              <Text color={theme.accent}>
+                {"// "}
+                {title}
+              </Text>
+            </Box>
             <Spacer />
-            {right}
+            {right && (
+              <Box flexShrink={1} marginLeft={2} minWidth={0}>
+                {right}
+              </Box>
+            )}
           </Box>
           <Box
             borderStyle="single"

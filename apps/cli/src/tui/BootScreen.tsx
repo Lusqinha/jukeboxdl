@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import pkg from "../../package.json" with { type: "json" };
 import { GradientRule } from "../components/GradientRule";
 import { StarBackdrop } from "../components/Starfield";
+import { t } from "../lib/i18n";
 import { colorRuns, gradientAt, type Theme, useTheme } from "./theme";
 
 // Letras de 3 linhas desenhadas para o wordmark "jukeboxdl".
@@ -149,7 +150,7 @@ export function BootScreen({ progress, status }: { progress: number; status: str
       </Box>
       <Box height={1}>
         <Text color={theme.retro ? theme.notice : theme.muted}>
-          {theme.retro ? "tocador de fitas do cyberespaço" : "músicas do YouTube direto para MP3"}
+          {theme.retro ? t("boot.taglineNeon") : t("boot.tagline")}
         </Text>
       </Box>
       <Box flexDirection="column" alignItems="center" marginTop={1}>

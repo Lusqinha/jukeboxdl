@@ -1,3 +1,4 @@
+import { detectLocale, loadConfig, setLocale } from "@jukeboxdl/core";
 import { Command, Option } from "commander";
 import { render } from "ink";
 import pkg from "../package.json" with { type: "json" };
@@ -14,7 +15,12 @@ import { doctorCommand } from "./commands/doctor";
 import { getCommand } from "./commands/get";
 import { historyListCommand, historyRemoveCommand } from "./commands/history";
 import { searchCommand } from "./commands/search";
+import { t } from "./lib/i18n";
 import { App } from "./tui/App";
+
+// O idioma precisa estar definido antes de montar os textos de ajuda.
+const savedConfig = await loadConfig().catch(() => undefined);
+setLocale(savedConfig?.language ?? detectLocale());
 
 async function tuiCommand(): Promise<void> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -31,92 +37,83 @@ async function tuiCommand(): Promise<void> {
 
 const program = new Command()
   .name("jukeboxdl")
-  .description(`${pkg.description}\n\nSem argumentos, abre a interface interativa.`)
-  .version(pkg.version, "-v, --version", "mostra a versão")
-  .helpOption("-h, --help", "mostra esta ajuda")
-  .helpCommand("help [comando]", "mostra a ajuda de um comando")
+  .description(t("cli.description"))
+  .version(pkg.version, "-v, --version", t("cli.version"))
+  .helpOption("-h, --help", t("cli.help"))
+  .helpCommand(t("cli.helpCommandArg"), t("cli.helpCommand"))
   .action(tuiCommand);
 
 program
   .command("get")
-  .description("baixa links de vídeo/playlist ou o primeiro resultado de cada busca")
-  .argument("<entradas...>", 'links ou termos de busca (use aspas: "artista música")')
-  .option("-o, --output <pasta>", "pasta de destino")
-  .option("-t, --template <template>", 'template do nome, ex.: "{artist} - {title}"')
-  .option("--playlist-template <template>", "template para faixas de playlist")
+  .description(t("cli.get"))
+  .argument("<inputs...>", t("cli.get.inputs"))
+  .option("-o, --output <dir>", t("cli.get.output"))
+  .option("-t, --template <template>", t("cli.get.template"))
+  .option("--playlist-template <template>", t("cli.get.playlistTemplate"))
   .addOption(
-    new Option("-b, --bitrate <kbps>", "qualidade do MP3").choices(["128", "192", "256", "320"]),
+    new Option("-b, --bitrate <kbps>", t("cli.get.bitrate")).choices(["128", "192", "256", "320"]),
   )
-  .option("-c, --concurrency <n>", "downloads simultâneos (1-8)")
-  .option("-i, --items <intervalo>", "faixas da playlist a baixar, ex.: 1-5,8")
-  .option("--no-playlist", "em links com vídeo e playlist, baixa só o vídeo")
-  .option("-f, --force", "baixa mesmo se já estiver no histórico")
-  .option("--no-cover", "não embute a capa")
+  .option("-c, --concurrency <n>", t("cli.get.concurrency"))
+  .option("-i, --items <range>", t("cli.get.items"))
+  .option("--no-playlist", t("cli.get.noPlaylist"))
+  .option("-f, --force", t("cli.get.force"))
+  .option("--no-cover", t("cli.get.noCover"))
   .action(getCommand);
 
 program
   .command("search")
-  .description("busca no YouTube e lista os resultados")
-  .argument("<termos...>")
-  .option("-n, --limit <n>", "quantidade de resultados", "10")
-  .option("--json", "saída em JSON")
+  .description(t("cli.search"))
+  .argument("<terms...>")
+  .option("-n, --limit <n>", t("cli.search.limit"), "10")
+  .option("--json", t("cli.json"))
   .action(searchCommand);
 
-const config = program.command("config").description("mostra ou altera a configuração");
+const config = program.command("config").description(t("cli.config"));
 config
   .command("show", { isDefault: true })
-  .description("mostra a configuração atual")
-  .option("--json", "saída em JSON")
+  .description(t("cli.config.show"))
+  .option("--json", t("cli.json"))
   .action(configShowCommand);
-config.command("get").description("lê um valor").argument("<chave>").action(configGetCommand);
+config.command("get").description(t("cli.config.get")).argument("<key>").action(configGetCommand);
 config
   .command("set")
-  .description("altera um valor (ex.: audio.bitrate 320)")
-  .argument("<chave>")
-  .argument("<valor>")
+  .description(t("cli.config.set"))
+  .argument("<key>")
+  .argument("<value>")
   .action(configSetCommand);
 config
   .command("unset")
-  .description("volta um valor ao padrão")
-  .argument("<chave>")
+  .description(t("cli.config.unset"))
+  .argument("<key>")
   .action(configUnsetCommand);
 config
   .command("preview")
-  .description("mostra como um template fica com uma faixa de exemplo")
+  .description(t("cli.config.preview"))
   .argument("<template>")
   .action(configPreviewCommand);
-config
-  .command("path")
-  .description("mostra o caminho do arquivo de configuração")
-  .action(configPathCommand);
+config.command("path").description(t("cli.config.path")).action(configPathCommand);
 
-const deps = program.command("deps").description("gerencia yt-dlp e ffmpeg");
+const deps = program.command("deps").description(t("cli.deps"));
 deps
   .command("install")
-  .description("baixa as dependências que faltam")
-  .option("--force", "baixa mesmo se já existirem")
+  .description(t("cli.deps.install"))
+  .option("--force", t("cli.deps.force"))
   .action(depsInstallCommand);
-deps
-  .command("update")
-  .description("atualiza o yt-dlp gerenciado para a versão mais recente")
-  .action(depsUpdateCommand);
+deps.command("update").description(t("cli.deps.update")).action(depsUpdateCommand);
 
-program
-  .command("doctor")
-  .description("verifica a configuração e as dependências")
-  .action(doctorCommand);
+program.command("doctor").description(t("cli.doctor")).action(doctorCommand);
 
-const history = program.command("history").description("faixas já baixadas");
+const history = program.command("history").description(t("cli.history"));
 history
   .command("list", { isDefault: true })
-  .description("lista os downloads mais recentes")
-  .option("-s, --search <texto>", "filtra por título, artista ou álbum")
-  .option("-n, --limit <n>", "quantidade", "20")
-  .option("--json", "saída em JSON")
+  .description(t("cli.history.list"))
+  .option("-s, --search <text>", t("cli.history.search"))
+  .option("-n, --limit <n>", t("cli.history.limit"), "20")
+  .option("--json", t("cli.json"))
   .action(historyListCommand);
 history
   .command("remove")
-  .description("remove um vídeo do histórico (não apaga o arquivo)")
+  .description(t("cli.history.remove"))
   .argument("<id>")
   .action(historyRemoveCommand);
 

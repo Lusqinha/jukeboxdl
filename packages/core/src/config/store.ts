@@ -2,11 +2,14 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { z } from "zod";
 import { ConfigError } from "../errors";
+import { t } from "../i18n/messages";
 import { getAppPaths } from "../paths";
 import { type Config, type ConfigInput, configSchema } from "./schema";
 
 function formatIssues(error: z.ZodError): string[] {
-  return error.issues.map((issue) => `${issue.path.join(".") || "(raiz)"}: ${issue.message}`);
+  return error.issues.map(
+    (issue) => `${issue.path.join(".") || t("config.root")}: ${issue.message}`,
+  );
 }
 
 function isMissingFile(error: unknown): boolean {
@@ -27,14 +30,17 @@ export async function loadConfig(file = getAppPaths().configFile): Promise<Confi
   try {
     json = JSON.parse(raw);
   } catch (error) {
-    throw new ConfigError(`JSON inválido em ${file}: ${(error as Error).message}`, file);
+    throw new ConfigError(
+      t("config.invalidJson", { file, message: (error as Error).message }),
+      file,
+    );
   }
 
   const result = configSchema.safeParse(json);
   if (!result.success) {
     const issues = formatIssues(result.error);
     throw new ConfigError(
-      `Configuração inválida em ${file}:\n  ${issues.join("\n  ")}`,
+      t("config.invalidIn", { file, issues: issues.join("\n  ") }),
       file,
       issues,
     );
@@ -50,7 +56,7 @@ export async function saveConfig(
   const result = configSchema.safeParse(config);
   if (!result.success) {
     const issues = formatIssues(result.error);
-    throw new ConfigError(`Configuração inválida:\n  ${issues.join("\n  ")}`, file, issues);
+    throw new ConfigError(t("config.invalid", { issues: issues.join("\n  ") }), file, issues);
   }
 
   await mkdir(dirname(file), { recursive: true });

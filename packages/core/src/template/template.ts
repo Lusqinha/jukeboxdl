@@ -1,4 +1,6 @@
 import { TemplateError, type TemplateIssue } from "../errors";
+import { getLocale } from "../i18n";
+import { t } from "../i18n/messages";
 import type { TrackMetadata } from "../metadata";
 import { sanitizeSegment, truncateBytes } from "./sanitize";
 
@@ -61,7 +63,7 @@ export function parseTemplate(template: string): ParsedTemplate {
     }
 
     if (char === "}") {
-      issues.push({ message: "Chave `}` sem `{` correspondente", position: i });
+      issues.push({ message: t("template.unmatchedClose"), position: i });
       i++;
       continue;
     }
@@ -74,7 +76,7 @@ export function parseTemplate(template: string): ParsedTemplate {
 
     const end = template.indexOf("}", i);
     if (end === -1) {
-      issues.push({ message: "Chave `{` não foi fechada", position: i });
+      issues.push({ message: t("template.unclosed"), position: i });
       break;
     }
 
@@ -84,14 +86,20 @@ export function parseTemplate(template: string): ParsedTemplate {
 
     const match = /^([a-z]+)(?::(\d+))?(?:\|(.*))?$/s.exec(body);
     if (!match) {
-      issues.push({ message: `Placeholder inválido: {${body}}`, position: start });
+      issues.push({
+        message: t("template.invalidPlaceholder", { placeholder: `{${body}}` }),
+        position: start,
+      });
       continue;
     }
 
     const [, name = "", pad, fallback] = match;
     if (!isVariable(name)) {
       const known = Object.keys(TEMPLATE_VARIABLES).join(", ");
-      issues.push({ message: `Variável desconhecida {${name}}. Use: ${known}`, position: start });
+      issues.push({
+        message: t("template.unknownVariable", { placeholder: `{${name}}`, known }),
+        position: start,
+      });
       continue;
     }
 
@@ -111,7 +119,7 @@ export function parseTemplate(template: string): ParsedTemplate {
   );
   if (issues.length === 0 && !hasUniqueField) {
     issues.push({
-      message: "O template precisa conter {title} ou {id} para que os arquivos não se sobrescrevam",
+      message: t("template.needsUnique"),
       position: 0,
     });
   }
@@ -128,8 +136,6 @@ export interface RenderOptions {
   /** Limite de bytes por nome de pasta/arquivo (a maioria dos sistemas aceita 255). */
   maxSegmentBytes?: number;
 }
-
-const FALLBACK_FILENAME = "Sem título";
 
 function formatValue(value: string | number | undefined, pad: number | undefined): string {
   if (value === undefined) return "";
@@ -149,7 +155,7 @@ export function renderTemplate(
 ): string {
   const { tokens, issues } = parseTemplate(template);
   if (issues.length > 0) {
-    throw new TemplateError(`Template inválido: ${issues[0]?.message}`, issues);
+    throw new TemplateError(t("template.invalid", { message: issues[0]?.message ?? "" }), issues);
   }
 
   const segments: string[] = [""];
@@ -170,7 +176,7 @@ export function renderTemplate(
 
   const suffix = extension ? `.${extension}` : "";
   const cleaned = segments.map(sanitizeSegment);
-  const filename = cleaned.pop() || FALLBACK_FILENAME;
+  const filename = cleaned.pop() || t("template.untitled");
   const directories = cleaned
     .filter(Boolean)
     .map((segment) => truncateBytes(segment, maxSegmentBytes));
@@ -179,15 +185,18 @@ export function renderTemplate(
   return [...directories, `${base}${suffix}`].join("/");
 }
 
-/** Faixa fictícia usada para pré-visualizar templates. */
-export const SAMPLE_TRACK = {
-  id: "abc123xyz00",
-  title: "Nome da Música",
-  artist: "Artista",
-  album: "Álbum",
-  track: 3,
-  year: 2024,
-  playlist: "Minha Playlist",
-  index: 7,
-  uploader: "Canal",
-} as const satisfies TemplateValues;
+/** Faixa fictícia, no idioma atual, usada para pré-visualizar templates. */
+export function sampleTrack(): TemplateValues {
+  const en = getLocale() === "en";
+  return {
+    id: "abc123xyz00",
+    title: en ? "Song Title" : "Nome da Música",
+    artist: en ? "Artist" : "Artista",
+    album: en ? "Album" : "Álbum",
+    track: 3,
+    year: 2024,
+    playlist: en ? "My Playlist" : "Minha Playlist",
+    index: 7,
+    uploader: en ? "Channel" : "Canal",
+  };
+}

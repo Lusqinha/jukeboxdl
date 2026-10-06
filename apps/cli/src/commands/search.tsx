@@ -1,4 +1,5 @@
 import { formatDuration } from "../lib/format";
+import { t } from "../lib/i18n";
 import { openJukebox } from "../lib/session";
 
 export async function searchCommand(
@@ -13,7 +14,7 @@ export async function searchCommand(
       return;
     }
     if (results.length === 0) {
-      console.log("Nenhum resultado.");
+      console.log(t("search.none"));
       return;
     }
     const width = String(results.length).length;

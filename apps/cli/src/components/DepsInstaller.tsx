@@ -2,6 +2,7 @@ import { type InstallProgress, installFfmpeg, installYtDlp } from "@jukeboxdl/co
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import { formatBytes } from "../lib/format";
+import { t } from "../lib/i18n";
 import { ProgressBar } from "./ProgressBar";
 import { Spinner } from "./Spinner";
 
@@ -80,10 +81,12 @@ export function DepsInstaller({
               </Text>
             )}
             {state.status === "running" && state.progress?.phase === "extract" && (
-              <Text dimColor>extraindo…</Text>
+              <Text dimColor>{t("deps.extracting")}</Text>
             )}
-            {state.status === "running" && !state.progress && <Text dimColor>verificando…</Text>}
-            {state.status === "done" && <Text dimColor>instalado</Text>}
+            {state.status === "running" && !state.progress && (
+              <Text dimColor>{t("deps.verifying")}</Text>
+            )}
+            {state.status === "done" && <Text dimColor>{t("deps.installed")}</Text>}
             {state.status === "failed" && <Text color="red">{state.error}</Text>}
           </Box>
         );

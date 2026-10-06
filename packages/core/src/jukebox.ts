@@ -8,6 +8,7 @@ import { downloadTrack, type TrackRequest } from "./download/track";
 import { BinaryError } from "./errors";
 import { pathExists } from "./fs";
 import { History } from "./history/history";
+import { t } from "./i18n/messages";
 import { type AppPaths, getAppPaths } from "./paths";
 import { YtDlp } from "./ytdlp/client";
 import type { PlaylistItem, ResolveResult, VideoSummary } from "./ytdlp/types";
@@ -24,9 +25,7 @@ export interface JukeboxOptions {
 async function requireBinary(name: BinaryName, config: Config, paths: AppPaths): Promise<string> {
   const info = await detectBinary(name, { binaries: config.binaries, paths });
   if (!info) {
-    throw new BinaryError(
-      `${name} não encontrado. Rode \`jukeboxdl deps install\` ou instale pelo gerenciador de pacotes do sistema.`,
-    );
+    throw new BinaryError(t("binary.notFound", { name }));
   }
   return info.path;
 }

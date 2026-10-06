@@ -10,6 +10,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import { useCallback, useEffect, useState } from "react";
 import type { DepTask } from "../components/DepsInstaller";
 import { missingDeps } from "../lib/deps";
+import { t } from "../lib/i18n";
 import { BootScreen } from "./BootScreen";
 import { Main } from "./Main";
 import { SetupScreen } from "./SetupScreen";
@@ -27,7 +28,7 @@ const MIN_BOOT_MS = 1600;
 export function App() {
   const { exit } = useApp();
   const [state, setState] = useState<State>({ phase: "loading" });
-  const [boot, setBoot] = useState({ progress: 0, status: "Iniciando…" });
+  const [boot, setBoot] = useState({ progress: 0, status: t("boot.starting") });
   const [booting, setBooting] = useState(true);
   const [themeName, setThemeName] = useState<ThemeName>("neon");
 
@@ -35,20 +36,20 @@ export function App() {
     setState({ phase: "loading" });
     const step = (progress: number, status: string) => setBoot({ progress, status });
     try {
-      step(0.15, "Lendo configuração…");
+      step(0.15, t("boot.config"));
       const config = await loadConfig();
       setThemeName(config.theme);
-      step(0.45, "Verificando yt-dlp e ffmpeg…");
+      step(0.45, t("boot.binaries"));
       const report = await detectBinaries({ binaries: config.binaries });
       const tasks = missingDeps(report);
       if (tasks.length > 0) {
-        step(1, "Faltam dependências");
+        step(1, t("boot.missing"));
         setState({ phase: "setup", report, tasks });
         return;
       }
-      step(0.8, "Abrindo histórico…");
+      step(0.8, t("boot.history"));
       const jukebox = await Jukebox.create({ config });
-      step(1, "Pronto");
+      step(1, t("boot.ready"));
       setState({ phase: "ready", jukebox });
     } catch (error) {
       const message =
@@ -96,7 +97,7 @@ export function App() {
         return (
           <Box padding={1} flexDirection="column" gap={1}>
             <Text color="red">✖ {state.message}</Text>
-            <Text dimColor>Corrija o problema e abra de novo. (q para sair)</Text>
+            <Text dimColor>{t("app.fixAndRetry")}</Text>
           </Box>
         );
       case "setup":

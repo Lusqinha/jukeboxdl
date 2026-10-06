@@ -3,6 +3,7 @@ import { Box, Text, useInput } from "ink";
 import { useCallback, useState } from "react";
 import { DepsInstaller, type DepTask } from "../components/DepsInstaller";
 import { Doctor } from "../components/Doctor";
+import { t } from "../lib/i18n";
 import { KeyHints } from "./KeyHints";
 
 export function SetupScreen({
@@ -36,7 +37,7 @@ export function SetupScreen({
   return (
     <Box flexDirection="column" padding={1} gap={1}>
       <Text bold color="cyan">
-        ♪ jukeboxdl · configuração inicial
+        ♪ jukeboxdl · {t("setup.title")}
       </Text>
       <Doctor
         configFile={paths.configFile}
@@ -46,15 +47,12 @@ export function SetupScreen({
       />
       {phase === "ask" && (
         <Box flexDirection="column">
-          <Text>
-            Faltam dependências: <Text bold>{tasks.join(", ")}</Text>. Posso baixar os builds
-            oficiais (com checksum verificado) para <Text dimColor>{paths.bin}</Text>.
-          </Text>
+          <Text>{t("setup.missing", { deps: tasks.join(", "), path: paths.bin })}</Text>
           <Box marginTop={1}>
             <KeyHints
               hints={[
-                ["enter", "baixar agora"],
-                ["q", "sair"],
+                ["enter", t("key.downloadNow")],
+                ["q", t("key.quit")],
               ]}
             />
           </Box>
@@ -63,14 +61,11 @@ export function SetupScreen({
       {phase !== "ask" && <DepsInstaller tasks={tasks} onDone={onDone} />}
       {phase === "failed" && (
         <Box flexDirection="column">
-          <Text color="red">
-            Não foi possível instalar tudo. Instale manualmente ou configure os caminhos em
-            config.json.
-          </Text>
+          <Text color="red">{t("setup.failed")}</Text>
           <KeyHints
             hints={[
-              ["enter", "tentar de novo"],
-              ["q", "sair"],
+              ["enter", t("key.retry")],
+              ["q", t("key.quit")],
             ]}
           />
         </Box>

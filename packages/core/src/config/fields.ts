@@ -1,90 +1,47 @@
 import { ConfigError } from "../errors";
+import { LOCALES } from "../i18n";
+import { type CoreMessageKey, t } from "../i18n/messages";
 import { type Config, configSchema, THEMES } from "./schema";
 
 export type ConfigFieldType = "path" | "template" | "choice" | "boolean" | "number";
 
 export interface ConfigField {
   key: string;
-  label: string;
   type: ConfigFieldType;
-  description: string;
   choices?: readonly (number | string)[];
   optional?: boolean;
 }
 
 /** Campos editáveis pelas interfaces, na ordem de exibição. */
 export const CONFIG_FIELDS: readonly ConfigField[] = [
-  {
-    key: "theme",
-    label: "Tema",
-    type: "choice",
-    choices: THEMES,
-    description: "neon: retrô cyberpunk · classico: visual simples (melhor sem cor de 24 bits)",
-  },
-  {
-    key: "outputDir",
-    label: "Pasta de destino",
-    type: "path",
-    description: "Onde os MP3 são salvos",
-  },
-  {
-    key: "filenameTemplate",
-    label: "Nome de faixa avulsa",
-    type: "template",
-    description: "Template usado em buscas e links de vídeo",
-  },
-  {
-    key: "playlistTemplate",
-    label: "Nome de faixa de playlist",
-    type: "template",
-    description: "Template usado em faixas vindas de playlists",
-  },
-  {
-    key: "audio.bitrate",
-    label: "Qualidade (kbps)",
-    type: "choice",
-    choices: [128, 192, 256, 320],
-    description: "Bitrate do MP3; o YouTube entrega ~160 kbps, acima disso só aumenta o arquivo",
-  },
-  {
-    key: "audio.embedCover",
-    label: "Embutir capa",
-    type: "boolean",
-    description: "Grava a thumbnail como capa",
-  },
-  {
-    key: "concurrency",
-    label: "Downloads simultâneos",
-    type: "number",
-    description: "De 1 a 8",
-  },
-  {
-    key: "skipDuplicates",
-    label: "Pular já baixadas",
-    type: "boolean",
-    description: "Usa o histórico para não baixar a mesma faixa de novo",
-  },
-  {
-    key: "binaries.ytDlp",
-    label: "Caminho do yt-dlp",
-    type: "path",
-    optional: true,
-    description: "Vazio = detectar automaticamente",
-  },
-  {
-    key: "binaries.ffmpeg",
-    label: "Caminho do ffmpeg",
-    type: "path",
-    optional: true,
-    description: "Vazio = detectar automaticamente; o ffprobe deve estar na mesma pasta",
-  },
+  { key: "language", type: "choice", choices: ["auto", ...LOCALES], optional: true },
+  { key: "theme", type: "choice", choices: THEMES },
+  { key: "outputDir", type: "path" },
+  { key: "filenameTemplate", type: "template" },
+  { key: "playlistTemplate", type: "template" },
+  { key: "audio.bitrate", type: "choice", choices: [128, 192, 256, 320] },
+  { key: "audio.embedCover", type: "boolean" },
+  { key: "concurrency", type: "number" },
+  { key: "skipDuplicates", type: "boolean" },
+  { key: "binaries.ytDlp", type: "path", optional: true },
+  { key: "binaries.ffmpeg", type: "path", optional: true },
 ];
+
+/** Nome do campo no idioma atual. */
+export function fieldLabel(field: ConfigField): string {
+  return t(`field.${field.key}.label` as CoreMessageKey);
+}
+
+/** Descrição do campo no idioma atual. */
+export function fieldDescription(field: ConfigField): string {
+  return t(`field.${field.key}.description` as CoreMessageKey);
+}
 
 export function findConfigField(key: string): ConfigField {
   const field = CONFIG_FIELDS.find((f) => f.key === key);
   if (!field) {
     const keys = CONFIG_FIELDS.map((f) => f.key).join(", ");
-    throw new ConfigError(`Chave desconhecida "${key}". Use: ${keys}`, "");
+    throw new ConfigError(t("config.unknownKey", { key, keys }), "");
   }
   return field;
 }
@@ -108,16 +65,18 @@ function coerce(field: ConfigField, raw: string): unknown {
     case "boolean":
       if (TRUE.has(value.toLowerCase())) return true;
       if (FALSE.has(value.toLowerCase())) return false;
-      throw new ConfigError(`${field.key}: use sim/não (ou true/false)`, "", [
-        `${field.key}: valor booleano inválido`,
+      throw new ConfigError(t("config.boolean", { key: field.key }), "", [
+        t("config.booleanIssue", { key: field.key }),
       ]);
     case "choice":
     case "number": {
-      if (field.type === "choice" && typeof field.choices?.[0] === "string") return value;
+      if (field.type === "choice" && typeof field.choices?.[0] === "string") {
+        return field.optional && value === "auto" ? undefined : value;
+      }
       const number = Number(value);
       if (!Number.isFinite(number) || value === "") {
-        throw new ConfigError(`${field.key}: "${raw}" não é um número`, "", [
-          `${field.key}: não é um número`,
+        throw new ConfigError(t("config.notNumber", { key: field.key, value: raw }), "", [
+          t("config.notNumberIssue", { key: field.key }),
         ]);
       }
       return number;
@@ -152,7 +111,7 @@ export function setConfigValue(config: Config, key: string, raw: string): Config
 }
 
 export function formatConfigValue(value: unknown): string {
-  if (value === undefined) return "(automático)";
-  if (typeof value === "boolean") return value ? "sim" : "não";
+  if (value === undefined) return t("config.auto");
+  if (typeof value === "boolean") return value ? t("config.yes") : t("config.no");
   return String(value);
 }

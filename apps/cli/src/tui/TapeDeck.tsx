@@ -3,6 +3,7 @@ import { Box, Spacer, Text, useAnimation } from "ink";
 import { jobTitle } from "../components/JobRow";
 import { ProgressBar } from "../components/ProgressBar";
 import { displayText, formatBytes } from "../lib/format";
+import { t } from "../lib/i18n";
 import { gradientAt, range, useTheme } from "./theme";
 
 const REEL = ["◐", "◓", "◑", "◒"];
@@ -30,9 +31,9 @@ export function TapeDeck({ jobs, bottom }: { jobs: Job[]; bottom: number }) {
   });
   const detail =
     job.status === "converting"
-      ? "convertendo"
+      ? t("job.converting")
       : job.status === "tagging"
-        ? "gravando tags"
+        ? t("job.tagging")
         : job.speed
           ? `${formatBytes(job.speed)}/s`
           : "";
@@ -53,9 +54,9 @@ export function TapeDeck({ jobs, bottom }: { jobs: Job[]; bottom: number }) {
       paddingX={1}
     >
       <Box>
-        <Text color={theme.accent}>{"// tocando agora"}</Text>
+        <Text color={theme.accent}>{t("tape.title")}</Text>
         <Spacer />
-        <Text color={theme.notice}>[ {active.length} na fita ]</Text>
+        <Text color={theme.notice}>{t("tape.count", { n: active.length })}</Text>
       </Box>
       <Box>
         <Text color={theme.link}>(</Text>

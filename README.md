@@ -26,6 +26,10 @@ jukeboxdl
 | **Histórico** | `/` filtrar · `d` remover do histórico |
 | **Config** | `enter` editar/alternar · preview ao vivo do template de nome |
 
+Há dois temas: **neon** (padrão, retrô cyberpunk: céu estrelado, painéis chanfrados, barras em LED e um toca-fitas que mostra o download atual) e **classico** (visual simples, melhor em terminais sem cor de 24 bits). Troque na aba Config ou com `jukeboxdl config set theme classico`.
+
+A interface e a CLI estão em **português e inglês**. O idioma vem do sistema (`LANG`), pode ser forçado com `JUKEBOXDL_LANG=en` ou fixado com `jukeboxdl config set language en` (`auto` volta a detectar).
+
 Ao abrir, uma tela de boot animada mostra as etapas do carregamento (qualquer tecla pula a animação quando termina).
 
 `tab`/`shift+tab` ou `1`–`4` trocam de aba (os números valem fora de campos de texto); `esc` volta para Buscar; nas listas, as setas dão a volta nas pontas e `page up`/`page down` pulam uma página; `ctrl+c` sai (pede confirmação se houver downloads em andamento). Faixas já baixadas aparecem com ✓ nos resultados. Em links `watch?v=…&list=…`, só o vídeo vem marcado; `a` marca a playlist inteira.
@@ -89,6 +93,8 @@ Arquivo `~/.config/jukeboxdl/config.json` (respeita `XDG_CONFIG_HOME`; `JUKEBOXD
 
 ```json
 {
+  "language": "pt-BR",
+  "theme": "neon",
   "outputDir": "~/Music",
   "filenameTemplate": "{artist} - {title}",
   "playlistTemplate": "{playlist}/{index:03} - {artist} - {title}",

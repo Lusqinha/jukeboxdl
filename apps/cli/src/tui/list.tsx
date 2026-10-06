@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
+import { t } from "../lib/i18n";
 
 /** Início da janela visível para manter `index` na tela. */
 export function windowStart(index: number, length: number, size: number): number {
@@ -59,7 +60,8 @@ export function ScrollHint({
     <Box height={1} paddingLeft={4}>
       {count > 0 && (
         <Text dimColor>
-          {position === "above" ? "▲" : "▼"} {count} {position === "above" ? "acima" : "abaixo"}
+          {position === "above" ? "▲" : "▼"}{" "}
+          {t(position === "above" ? "scroll.above" : "scroll.below", { n: count })}
         </Text>
       )}
     </Box>

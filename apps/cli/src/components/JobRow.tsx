@@ -1,13 +1,14 @@
 import type { Job } from "@jukeboxdl/core";
 import { Box, Text, useWindowSize } from "ink";
 import { displayText, formatBytes, formatDuration } from "../lib/format";
+import { t } from "../lib/i18n";
 import { useTheme } from "../tui/theme";
 import { ProgressBar } from "./ProgressBar";
 import { Spinner } from "./Spinner";
 
-const STATUS_LABEL: Partial<Record<Job["status"], string>> = {
-  converting: "convertendo",
-  tagging: "gravando tags",
+const STATUS_LABEL: Partial<Record<Job["status"], () => string>> = {
+  converting: () => t("job.converting"),
+  tagging: () => t("job.tagging"),
 };
 
 export function jobTitle(job: Job): string {
@@ -52,7 +53,7 @@ export function JobRow({
   switch (job.status) {
     case "queued":
       icon = <Text color={theme.muted}>·</Text>;
-      detail = <Text color={theme.muted}>na fila</Text>;
+      detail = <Text color={theme.muted}>{t("job.queued")}</Text>;
       break;
     case "downloading":
     case "converting":
@@ -63,7 +64,7 @@ export function JobRow({
           <ProgressBar value={job.progress} width={16} />{" "}
           {String(Math.round(job.progress * 100)).padStart(3)}%{" "}
           <Text color={theme.meta}>
-            {STATUS_LABEL[job.status] ??
+            {STATUS_LABEL[job.status]?.() ??
               [
                 job.speed ? `${formatBytes(job.speed)}/s` : "",
                 job.eta !== undefined ? formatDuration(job.eta) : "",
@@ -86,7 +87,7 @@ export function JobRow({
       icon = <Text color={theme.warning}>↷</Text>;
       detail = (
         <Text color={theme.muted}>
-          {job.skipReason === "history" ? "já baixada" : "arquivo já existe"}
+          {job.skipReason === "history" ? t("job.skippedHistory") : t("job.skippedExists")}
         </Text>
       );
       break;
@@ -100,7 +101,7 @@ export function JobRow({
       break;
     case "canceled":
       icon = <Text color={theme.muted}>⊘</Text>;
-      detail = <Text color={theme.muted}>cancelada</Text>;
+      detail = <Text color={theme.muted}>{t("job.canceled")}</Text>;
       break;
   }
 
@@ -135,15 +136,14 @@ export function summarize(jobs: Job[]) {
 export function JobSummary({ jobs }: { jobs: Job[] }) {
   const theme = useTheme();
   const s = summarize(jobs);
-  const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
   const parts: Array<[string, string, string | undefined]> = [];
-  if (s.active) parts.push(["a", `${s.active} baixando`, theme.link]);
-  if (s.queued) parts.push(["q", `${s.queued} na fila`, undefined]);
-  if (s.done) parts.push(["d", plural(s.done, "concluída"), theme.success]);
-  if (s.skipped) parts.push(["s", plural(s.skipped, "pulada"), theme.warning]);
-  if (s.failed) parts.push(["f", plural(s.failed, "falha"), theme.danger]);
-  if (s.canceled) parts.push(["c", plural(s.canceled, "cancelada"), theme.muted]);
-  if (parts.length === 0) return <Text color={theme.muted}>nenhum download</Text>;
+  if (s.active) parts.push(["a", t("summary.active", { n: s.active }), theme.link]);
+  if (s.queued) parts.push(["q", t("summary.queued", { n: s.queued }), undefined]);
+  if (s.done) parts.push(["d", t("summary.done", { n: s.done }), theme.success]);
+  if (s.skipped) parts.push(["s", t("summary.skipped", { n: s.skipped }), theme.warning]);
+  if (s.failed) parts.push(["f", t("summary.failed", { n: s.failed }), theme.danger]);
+  if (s.canceled) parts.push(["c", t("summary.canceled", { n: s.canceled }), theme.muted]);
+  if (parts.length === 0) return <Text color={theme.muted}>{t("summary.none")}</Text>;
   return (
     <Text>
       {parts.map(([key, label, color], i) => (

@@ -6,6 +6,7 @@ import { Spinner } from "../components/Spinner";
 import { StarBackdrop } from "../components/Starfield";
 import { TextInput } from "../components/TextInput";
 import { displayText, formatDuration, isUrl, videoIdFromUrl } from "../lib/format";
+import { t } from "../lib/i18n";
 import { KeyHints } from "./KeyHints";
 import { ScrollHint, useCursor } from "./list";
 import { Pointer } from "./Pointer";
@@ -62,7 +63,7 @@ export function SearchScreen({
     abort.current?.abort();
     const controller = new AbortController();
     abort.current = controller;
-    setLoading(isUrl(text) ? "Lendo link…" : "Buscando…");
+    setLoading(isUrl(text) ? t("search.loadingLink") : t("search.loading"));
     setError(null);
     try {
       let next: Results;
@@ -121,9 +122,7 @@ export function SearchScreen({
     if (chosen.length === 0) return;
     if (results.kind === "playlist") jukebox.enqueuePlaylist(results, chosen as PlaylistItem[]);
     else jukebox.enqueue(chosen);
-    onFlash(
-      `${chosen.length} faixa${chosen.length > 1 ? "s" : ""} adicionada${chosen.length > 1 ? "s" : ""} à fila`,
-    );
+    onFlash(t("flash.queued", { n: chosen.length }));
     setMarked(new Set());
   };
 
@@ -174,8 +173,11 @@ export function SearchScreen({
   const inputFocused = active && focus === "input";
   const summary = results
     ? results.kind === "playlist"
-      ? `playlist "${displayText(results.title)}" · ${results.items.length} faixas${results.unavailable ? ` · ${results.unavailable} indisponíveis` : ""}`
-      : `${results.items.length} resultado${results.items.length === 1 ? "" : "s"}`
+      ? t("search.playlistSummary", {
+          title: displayText(results.title),
+          n: results.items.length,
+        }) + (results.unavailable ? t("search.unavailable", { n: results.unavailable }) : "")
+      : t("search.results", { n: results.items.length })
     : "";
 
   const input = (
@@ -199,7 +201,7 @@ export function SearchScreen({
         onChange={setQuery}
         onSubmit={submit}
         focus={inputFocused}
-        placeholder="buscar música ou colar link de vídeo/playlist"
+        placeholder={t("search.placeholder")}
       />
     </Box>
   );
@@ -263,12 +265,9 @@ export function SearchScreen({
       ) : (
         <>
           <Text color={theme.notice}>
-            {theme.retro ? "★ " : ""}digite uma música, artista ou álbum e tecle enter
-            {theme.retro ? " ★" : ""}
+            {theme.retro ? `★ ${t("search.hint")} ★` : t("search.hint")}
           </Text>
-          <Text color={theme.muted}>
-            links do YouTube e YouTube Music (vídeos, playlists e álbuns) também valem
-          </Text>
+          <Text color={theme.muted}>{t("search.hintLinks")}</Text>
         </>
       )}
     </StarBackdrop>
@@ -278,10 +277,7 @@ export function SearchScreen({
     <Text color={theme.muted}>
       {summary}
       {marked.size > 0 && (
-        <Text color={theme.accent}>
-          {" "}
-          · {marked.size} marcada{marked.size > 1 ? "s" : ""}
-        </Text>
+        <Text color={theme.accent}>{t("search.marked", { n: marked.size })}</Text>
       )}
     </Text>
   );
@@ -290,7 +286,11 @@ export function SearchScreen({
     <Box flexDirection="column" flexGrow={1}>
       {input}
       {theme.retro ? (
-        <Panel title={results ? "resultados" : "sintonizar"} right={results && header} flexGrow={1}>
+        <Panel
+          title={results ? t("panel.results") : t("panel.tune")}
+          right={results && header}
+          flexGrow={1}
+        >
           {results && error && <Text color={theme.danger}>✖ {error}</Text>}
           {results ? list : empty}
         </Panel>
@@ -311,20 +311,23 @@ export function SearchScreen({
         {focus === "input" ? (
           <KeyHints
             hints={[
-              ["enter", "buscar"],
-              ["↓", "resultados"],
-              ["tab", "próxima aba"],
-              ["ctrl+c", "sair"],
+              ["enter", t("key.search")],
+              ["↓", t("key.results")],
+              ["tab", t("key.nextTab")],
+              ["ctrl+c", t("key.quit")],
             ]}
           />
         ) : (
           <KeyHints
             hints={[
-              ["enter", marked.size > 0 ? `baixar ${marked.size}` : "baixar"],
-              ["espaço", "marcar"],
-              ["a", "marcar todas"],
-              ["/", "buscar"],
-              ["1-4", "abas"],
+              [
+                "enter",
+                marked.size > 0 ? t("key.downloadN", { n: marked.size }) : t("key.download"),
+              ],
+              [t("key.space"), t("key.mark")],
+              ["a", t("key.markAll")],
+              ["/", t("key.search")],
+              ["1-4", t("key.tabs")],
             ]}
           />
         )}

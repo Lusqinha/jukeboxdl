@@ -1,4 +1,5 @@
 import { DownloadError } from "../errors";
+import { t } from "../i18n/messages";
 import type { TrackMetadata } from "../metadata";
 import { runCommand } from "../process";
 
@@ -64,6 +65,8 @@ export async function writeTags(options: WriteTagsOptions): Promise<void> {
     signal: options.signal,
   });
   if (result.code !== 0) {
-    throw new DownloadError(`Falha ao gravar as tags: ${result.stderr.trim() || result.code}`);
+    throw new DownloadError(
+      t("tags.failed", { error: result.stderr.trim() || String(result.code) }),
+    );
   }
 }

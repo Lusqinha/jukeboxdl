@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Panel, panelChrome } from "../components/Panel";
 import { TextInput } from "../components/TextInput";
 import { displayText } from "../lib/format";
+import { formatDate, t } from "../lib/i18n";
 import { KeyHints } from "./KeyHints";
 import { ScrollHint, useCursor } from "./list";
 import { Pointer } from "./Pointer";
@@ -64,8 +65,8 @@ export function HistoryScreen({
   return (
     <Box flexDirection="column" flexGrow={1}>
       <Panel
-        title="histórico"
-        right={<Text color={theme.meta}>{entries.length} faixas</Text>}
+        title={t("panel.history")}
+        right={<Text color={theme.meta}>{t("history.count", { n: entries.length })}</Text>}
         flexGrow={1}
       >
         <Box>
@@ -74,14 +75,14 @@ export function HistoryScreen({
             value={filter}
             onChange={setFilter}
             focus={active && filtering}
-            placeholder="filtrar por título, artista ou álbum"
+            placeholder={t("history.filterPlaceholder")}
           />
         </Box>
         <Box flexDirection="column" flexGrow={1}>
           {entries.length === 0 && (
             <Text color={theme.muted}>
               {" "}
-              {filter ? "nada encontrado." : "nenhuma faixa baixada ainda."}
+              {filter ? t("history.nothingFound") : t("history.none")}
             </Text>
           )}
           <ScrollHint
@@ -92,10 +93,7 @@ export function HistoryScreen({
           />
           {entries.slice(cursor.start, cursor.start + pageSize).map((entry, i) => {
             const isSelected = !filtering && cursor.start + i === cursor.index;
-            const date = new Date(entry.downloadedAt).toLocaleString("pt-BR", {
-              dateStyle: "short",
-              timeStyle: "short",
-            });
+            const date = formatDate(entry.downloadedAt);
             return (
               <Box
                 key={`${entry.videoId}-${entry.downloadedAt}`}
@@ -132,9 +130,9 @@ export function HistoryScreen({
       <Box marginTop={1}>
         <KeyHints
           hints={[
-            ["/", "filtrar"],
-            ["d", "remover do histórico"],
-            ["1-4", "abas"],
+            ["/", t("key.filter")],
+            ["d", t("key.removeHistory")],
+            ["1-4", t("key.tabs")],
           ]}
         />
       </Box>

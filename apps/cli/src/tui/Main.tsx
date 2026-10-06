@@ -1,9 +1,17 @@
-import type { Config, Jukebox, ThemeName } from "@jukeboxdl/core";
+import {
+  type Config,
+  detectLocale,
+  getLocale,
+  type Jukebox,
+  setLocale,
+  type ThemeName,
+} from "@jukeboxdl/core";
 import { Box, Text, useInput, useWindowSize } from "ink";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GradientRule } from "../components/GradientRule";
 import { JobSummary, summarize } from "../components/JobRow";
 import { ProgressBar } from "../components/ProgressBar";
+import { t } from "../lib/i18n";
 import { useQueueJobs } from "../lib/use-queue";
 import { ConfigScreen } from "./ConfigScreen";
 import { DownloadsScreen } from "./DownloadsScreen";
@@ -14,6 +22,16 @@ import { ThemeProvider, useTheme } from "./theme";
 
 const TABS = ["Buscar", "Downloads", "Histórico", "Config"] as const;
 type Tab = (typeof TABS)[number];
+
+const TAB_LABEL = {
+  Buscar: "tab.search",
+  Downloads: "tab.downloads",
+  Histórico: "tab.history",
+  Config: "tab.config",
+} as const satisfies Record<Tab, Parameters<typeof t>[0]>;
+
+const tabLabel = (tab: Tab) => t(TAB_LABEL[tab]);
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 // Cabeçalho (1) + divisor (1) + separador do rodapé (1) + rodapé (1).
 const CHROME_ROWS = 4;
@@ -36,7 +54,7 @@ function Header({ tab, pending }: { tab: Tab; pending: number }) {
         const selected = name === tab;
         const badge = name === "Downloads" && pending > 0 ? ` ${pending}` : "";
         if (theme.retro) {
-          const label = name.toLowerCase();
+          const label = tabLabel(name);
           return (
             <Text key={name}>
               <Text> </Text>
@@ -55,12 +73,12 @@ function Header({ tab, pending }: { tab: Tab; pending: number }) {
             <Text> </Text>
             {selected ? (
               <Text backgroundColor={theme.selectionBg} color="cyan" bold>
-                {` ${i + 1} ${name}${badge} `}
+                {` ${i + 1} ${capitalize(tabLabel(name))}${badge} `}
               </Text>
             ) : (
               <Text>
                 <Text color={theme.muted}>{` ${i + 1} `}</Text>
-                {name}
+                {capitalize(tabLabel(name))}
                 <Text color="cyan">{badge} </Text>
               </Text>
             )}
@@ -74,11 +92,11 @@ function Header({ tab, pending }: { tab: Tab; pending: number }) {
 function Screens({
   jukebox,
   onQuit,
-  onThemeChange,
+  onConfigSaved,
 }: {
   jukebox: Jukebox;
   onQuit: () => void;
-  onThemeChange: (name: ThemeName) => void;
+  onConfigSaved: (config: Config) => void;
 }) {
   const theme = useTheme();
   const { columns, rows } = useWindowSize();
@@ -120,7 +138,7 @@ function Screens({
     if (key.ctrl && input === "c") {
       if (busy && !confirmQuit) {
         setConfirmQuit(true);
-        showFlash("Há downloads em andamento. ctrl+c de novo para cancelar e sair.");
+        showFlash(t("flash.confirmQuit"));
         return;
       }
       onQuit();
@@ -148,7 +166,6 @@ function Screens({
           running.reduce((sum, j) => sum + j.progress, 0)) /
         (summary.total - summary.canceled || 1)
       : 0;
-  const onConfigSaved = (config: Config) => onThemeChange(config.theme);
 
   return (
     <Box flexDirection="column" width={columns} height={rows}>
@@ -219,9 +236,16 @@ function Screens({
 
 export function Main({ jukebox, onQuit }: { jukebox: Jukebox; onQuit: () => void }) {
   const [themeName, setThemeName] = useState<ThemeName>(jukebox.config.theme);
+  // Só serve para re-renderizar com os novos textos; as telas mantêm o estado.
+  const [, setLocaleState] = useState(getLocale());
+  const onConfigSaved = (config: Config) => {
+    setThemeName(config.theme);
+    setLocale(config.language ?? detectLocale());
+    setLocaleState(getLocale());
+  };
   return (
     <ThemeProvider name={themeName}>
-      <Screens jukebox={jukebox} onQuit={onQuit} onThemeChange={setThemeName} />
+      <Screens jukebox={jukebox} onQuit={onQuit} onConfigSaved={onConfigSaved} />
     </ThemeProvider>
   );
 }

@@ -2,6 +2,7 @@ import { detectBinaries, getAppPaths, latestYtDlpVersion } from "@jukeboxdl/core
 import { render } from "ink";
 import { DepsInstaller, type DepTask } from "../components/DepsInstaller";
 import { missingDeps } from "../lib/deps";
+import { t } from "../lib/i18n";
 import { loadConfigOrFail } from "../lib/session";
 
 async function runInstaller(tasks: DepTask[]): Promise<void> {
@@ -23,12 +24,10 @@ export async function depsInstallCommand(options: { force?: boolean }): Promise<
     ? ["yt-dlp", "ffmpeg"]
     : missingDeps(await detectBinaries({ binaries: config.binaries }));
   if (tasks.length === 0) {
-    console.log(
-      "✔ Todas as dependências já estão disponíveis (use --force para baixar mesmo assim).",
-    );
+    console.log(t("deps.allPresent"));
     return;
   }
-  console.log(`Baixando para ${getAppPaths().bin}`);
+  console.log(t("deps.downloadingTo", { path: getAppPaths().bin }));
   await runInstaller(tasks);
 }
 
@@ -38,22 +37,19 @@ export async function depsUpdateCommand(): Promise<void> {
   const ytDlp = report["yt-dlp"];
 
   if (!ytDlp || ytDlp instanceof Error) {
-    console.log("yt-dlp não está instalado; baixando…");
+    console.log(t("deps.missingYtDlp"));
     return runInstaller(["yt-dlp"]);
   }
   if (ytDlp.source !== "managed") {
-    console.log(
-      `O yt-dlp em uso (${ytDlp.path}) não é gerenciado pelo jukeboxdl.\n` +
-        "Atualize pelo gerenciador de pacotes, ou rode `jukeboxdl deps install --force` para usar uma cópia gerenciada.",
-    );
+    console.log(t("deps.notManaged", { path: ytDlp.path }));
     return;
   }
 
   const latest = await latestYtDlpVersion();
   if (latest === ytDlp.version) {
-    console.log(`✔ yt-dlp já está na versão mais recente (${latest}).`);
+    console.log(t("deps.upToDate", { version: latest }));
     return;
   }
-  console.log(`Atualizando yt-dlp ${ytDlp.version ?? "?"} → ${latest}`);
+  console.log(t("deps.updating", { from: ytDlp.version ?? "?", to: latest }));
   await runInstaller(["yt-dlp"]);
 }

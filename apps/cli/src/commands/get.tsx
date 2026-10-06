@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { JobRow, JobSummary, summarize } from "../components/JobRow";
 import { Spinner } from "../components/Spinner";
 import { isUrl, parseItems } from "../lib/format";
+import { t } from "../lib/i18n";
 import { fail, loadConfigOrFail, openJukebox } from "../lib/session";
 import { useQueueJobs } from "../lib/use-queue";
 import { ThemeProvider } from "../tui/theme";
@@ -72,10 +73,10 @@ function GetApp({
           if (!isUrl(input)) {
             const [video] = await jukebox.search(input, 1);
             if (!video) {
-              log(`✖ Nada encontrado para "${input}"`, "red");
+              log(t("get.nothingFound", { query: input }), "red");
               continue;
             }
-            log(`🔎 "${input}" → ${video.title}`);
+            log(t("get.searchResult", { query: input, title: video.title }));
             jukebox.enqueue([video]);
             continue;
           }
@@ -86,11 +87,13 @@ function GetApp({
           }
           let selected = result.items;
           if (items) selected = selected.filter((item) => items.has(item.index));
-          const extra = result.unavailable
-            ? ` (${result.unavailable} indisponíve${result.unavailable > 1 ? "is" : "l"})`
-            : "";
+          const extra = result.unavailable ? t("get.unavailable", { n: result.unavailable }) : "";
           log(
-            `▶ Playlist "${result.title}": ${selected.length} de ${result.items.length} faixas${extra}`,
+            t("get.playlist", {
+              title: result.title,
+              selected: selected.length,
+              total: result.items.length,
+            }) + extra,
             "cyan",
           );
           jukebox.enqueuePlaylist(result, selected);
@@ -161,17 +164,18 @@ function GetApp({
           <JobRow key={job.id} job={job} />
         ))}
         {queued.length > MAX_VISIBLE_QUEUED && (
-          <Text dimColor> … e mais {queued.length - MAX_VISIBLE_QUEUED} na fila</Text>
+          <Text dimColor> {t("get.moreQueued", { n: queued.length - MAX_VISIBLE_QUEUED })}</Text>
         )}
         {resolving && (
           <Text>
-            <Spinner /> {isUrl(resolving) ? "Lendo" : "Buscando"} <Text dimColor>{resolving}</Text>
+            <Spinner /> {isUrl(resolving) ? t("get.reading") : t("get.searching")}{" "}
+            <Text dimColor>{resolving}</Text>
           </Text>
         )}
         {jobs.length > 0 && (
           <Box marginTop={1}>
             <JobSummary jobs={jobs} />
-            {canceling && <Text color="yellow"> · cancelando (ctrl+c de novo para forçar)</Text>}
+            {canceling && <Text color="yellow">{t("get.canceling")}</Text>}
           </Box>
         )}
       </Box>

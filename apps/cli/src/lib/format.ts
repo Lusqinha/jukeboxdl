@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 export function formatDuration(seconds: number | undefined): string {
   if (seconds === undefined || !Number.isFinite(seconds)) return "--:--";
   const total = Math.round(seconds);
@@ -25,7 +27,7 @@ export function parseItems(spec: string): Set<number> {
   const items = new Set<number>();
   for (const part of spec.split(",")) {
     const match = /^\s*(\d+)\s*(?:-\s*(\d+))?\s*$/.exec(part);
-    if (!match) throw new Error(`Intervalo inválido: "${part}" (use algo como 1-5,8)`);
+    if (!match) throw new Error(t("items.invalid", { part }));
     const start = Number(match[1]);
     const end = match[2] ? Number(match[2]) : start;
     for (let i = Math.min(start, end); i <= Math.max(start, end); i++) items.add(i);

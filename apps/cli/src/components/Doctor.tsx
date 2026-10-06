@@ -1,11 +1,6 @@
-import { BINARY_NAMES, type BinaryReport, type BinarySource } from "@jukeboxdl/core";
+import { BINARY_NAMES, type BinaryReport } from "@jukeboxdl/core";
 import { Box, Text } from "ink";
-
-const SOURCE_LABEL: Record<BinarySource, string> = {
-  config: "config",
-  managed: "gerenciado",
-  system: "sistema",
-};
+import { t } from "../lib/i18n";
 
 export interface DoctorProps {
   configFile: string;
@@ -17,7 +12,7 @@ export interface DoctorProps {
 export function Doctor({ configFile, configError, binDir, binaries }: DoctorProps) {
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text bold>Configuração</Text>
+      <Text bold>{t("doctor.config")}</Text>
       <Box paddingLeft={2} flexDirection="column">
         <Text>
           <Text color={configError ? "red" : "green"}>{configError ? "✖" : "✔"}</Text>{" "}
@@ -27,8 +22,8 @@ export function Doctor({ configFile, configError, binDir, binaries }: DoctorProp
       </Box>
 
       <Box marginTop={1} flexDirection="column">
-        <Text bold>Dependências</Text>
-        <Text dimColor> binários gerenciados em {binDir}</Text>
+        <Text bold>{t("doctor.deps")}</Text>
+        <Text dimColor> {t("doctor.managedIn", { path: binDir })}</Text>
       </Box>
       <Box paddingLeft={2} flexDirection="column">
         {BINARY_NAMES.map((name) => {
@@ -43,15 +38,17 @@ export function Doctor({ configFile, configError, binDir, binaries }: DoctorProp
           if (!entry) {
             return (
               <Text key={name}>
-                <Text color="red">✖ {name.padEnd(8)}</Text> <Text dimColor>não encontrado</Text>
+                <Text color="red">✖ {name.padEnd(8)}</Text>{" "}
+                <Text dimColor>{t("doctor.notFound")}</Text>
               </Text>
             );
           }
           return (
             <Text key={name}>
-              <Text color="green">✔ {name.padEnd(8)}</Text> {entry.version ?? "versão desconhecida"}{" "}
+              <Text color="green">✔ {name.padEnd(8)}</Text>{" "}
+              {entry.version ?? t("doctor.unknownVersion")}{" "}
               <Text dimColor>
-                [{SOURCE_LABEL[entry.source]}] {entry.path}
+                [{t(`source.${entry.source}`)}] {entry.path}
               </Text>
             </Text>
           );

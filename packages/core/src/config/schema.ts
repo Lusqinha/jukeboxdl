@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { LOCALES } from "../i18n";
 import { validateTemplate } from "../template/template";
-
-z.config(z.locales.ptBR());
 
 const templateString = z
   .string()
@@ -16,6 +15,8 @@ export const THEMES = ["neon", "classico"] as const;
 export type ThemeName = (typeof THEMES)[number];
 
 export const configSchema = z.object({
+  /** Idioma da interface; ausente = detectar pelo sistema. */
+  language: z.enum(LOCALES).optional(),
   /** Visual da interface interativa. */
   // "lataria" foi o nome anterior do tema neon.
   theme: z
