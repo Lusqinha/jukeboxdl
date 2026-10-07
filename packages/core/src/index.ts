@@ -6,6 +6,8 @@ export { isExecutable, which } from "./binaries/which";
 export * from "./config/fields";
 export * from "./config/schema";
 export * from "./config/store";
+export * from "./covers/providers";
+export * from "./covers/update";
 export * from "./download/queue";
 export * from "./download/track";
 export * from "./errors";

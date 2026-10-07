@@ -45,6 +45,9 @@ export const t = defineMessages({
     "field.musicbrainz.description": "Busca álbum, ano e número da faixa quando o vídeo não traz",
     "field.notifications.label": "Notificações",
     "field.notifications.description": "Avisa pelo sistema quando a fila de downloads termina",
+    "field.cover.source.label": "Fonte da capa",
+    "field.cover.source.description":
+      "auto: Cover Art Archive, depois Deezer, depois YouTube · musicbrainz · deezer · itunes · youtube",
     "field.audio.embedCover.label": "Embutir capa",
     "field.audio.embedCover.description": "Grava a thumbnail como capa",
     "field.concurrency.label": "Downloads simultâneos",
@@ -129,6 +132,9 @@ export const t = defineMessages({
       "Looks up album, year and track number when the video lacks them",
     "field.notifications.label": "Notifications",
     "field.notifications.description": "System notification when the download queue finishes",
+    "field.cover.source.label": "Cover source",
+    "field.cover.source.description":
+      "auto: Cover Art Archive, then Deezer, then YouTube · musicbrainz · deezer · itunes · youtube",
     "field.audio.embedCover.label": "Embed cover",
     "field.audio.embedCover.description": "Saves the thumbnail as cover art",
     "field.concurrency.label": "Simultaneous downloads",

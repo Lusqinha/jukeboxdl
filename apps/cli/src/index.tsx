@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import {
   AUDIO_FORMATS,
+  COVER_SOURCES,
   detectLocale,
   enableDebugLog,
   getAppPaths,
@@ -18,6 +19,7 @@ import {
   configShowCommand,
   configUnsetCommand,
 } from "./commands/config";
+import { coversUpdateCommand } from "./commands/covers";
 import { depsInstallCommand, depsUpdateCommand } from "./commands/deps";
 import { doctorCommand } from "./commands/doctor";
 import { getCommand } from "./commands/get";
@@ -119,6 +121,17 @@ deps
   .option("--force", t("cli.deps.force"))
   .action(depsInstallCommand);
 deps.command("update").description(t("cli.deps.update")).action(depsUpdateCommand);
+
+const covers = program.command("covers").description(t("cli.covers"));
+covers
+  .command("update")
+  .description(t("cli.covers.update"))
+  .argument("[files...]")
+  .option("-a, --all", t("cli.covers.all"))
+  .addOption(
+    new Option("-s, --source <source>", t("cli.covers.source")).choices([...COVER_SOURCES]),
+  )
+  .action(coversUpdateCommand);
 
 program.command("doctor").description(t("cli.doctor")).action(doctorCommand);
 

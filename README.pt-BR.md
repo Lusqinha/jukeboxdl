@@ -39,7 +39,7 @@ O jukeboxdl é uma interface para o [yt-dlp](https://github.com/yt-dlp/yt-dlp) e
 - Toca uma prévia antes de baixar (precisa do `mpv` ou do `ffplay`).
 - Salva em MP3, ou em Opus/M4A quando você quer o áudio original do YouTube sem reconverter.
 - Grava tags ID3/Vorbis/MP4. Artista e título vêm dos metadados do YouTube Music quando existem e, se não, do padrão "Artista - Título" no nome do vídeo. Álbum, ano e número da faixa que faltarem podem ser completados pelo MusicBrainz.
-- Embute a capa. Faixas do YouTube Music ganham o recorte quadrado da arte do álbum; vídeos comuns mantêm o quadro 16:9.
+- Embute a capa, buscada no Cover Art Archive, no Deezer ou no iTunes quando a faixa é encontrada lá, ou tirada da thumbnail do YouTube. A capa de faixas já baixadas pode ser trocada depois sem mexer no áudio.
 - Normaliza o volume para todas as faixas tocarem mais ou menos no mesmo nível (perto de -14 LUFS) e grava tags ReplayGain (R128 no Opus). No MP3 o ajuste acontece na mesma conversão; Opus e M4A são recodificados quando a normalização está ligada.
 - Corta falas e introduções com o SponsorBlock e divide mixes longos em um arquivo por capítulo.
 - Manda um grupo de downloads para outra pasta ou para um pendrive sem mexer na pasta padrão. Discos removíveis aparecem com o espaço livre.
@@ -93,7 +93,7 @@ Digite uma busca e tecle enter, desça para os resultados com `↓`, marque as f
 | Listas | `↑↓` ou `j` `k` movem · `pgup` `pgdn` ou `ctrl+u` `ctrl+d` pulam · `g` `G` início/fim |
 | Busca | `enter` baixa · `espaço` marca · `a` marca todas · `p` prévia · `c` divide por capítulos · `f` filtro de duração · `v` esconde ao vivo/lyrics |
 | Downloads | `x`/`X` cancelam · `r`/`R` tentam de novo · `c` limpa concluídos · `o` abre a pasta |
-| Histórico | `/` filtra · `o` abre a pasta · `r` baixa de novo · `e` exporta CSV · `d` remove o registro |
+| Histórico | `/` filtra · `o` abre a pasta · `r` baixa de novo · `e` exporta CSV · `t`/`T` atualiza a capa (uma/todas) · `d` remove o registro |
 
 ### Comandos
 
@@ -106,6 +106,7 @@ jukeboxdl search -n 5 "alan walker" --json
 jukeboxdl config set filenameTemplate "{artist}/{album|Singles}/{track:02} - {title}"
 jukeboxdl config preview "{playlist}/{index:03} {title}"
 jukeboxdl history export -f csv -o historico.csv
+jukeboxdl covers update --all --source deezer        # troca as capas das faixas já baixadas
 jukeboxdl deps update
 jukeboxdl doctor
 ```
@@ -131,6 +132,7 @@ As opções ficam em `~/.config/jukeboxdl/config.json` e podem ser alteradas na 
     "normalize": true,
     "replayGain": true
   },
+  "cover": { "source": "auto" },
   "musicbrainz": true,
   "notifications": true,
   "concurrency": 3,

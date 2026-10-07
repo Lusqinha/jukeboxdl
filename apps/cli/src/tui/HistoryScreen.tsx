@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { expandHome, type HistoryEntry, type Jukebox, openPath } from "@jukeboxdl/core";
+import { expandHome, type HistoryEntry, type Jukebox, openPath, pathExists } from "@jukeboxdl/core";
 import { Box, Text, useInput } from "ink";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { historyToCsv } from "../commands/history";
 import { Panel, panelChrome } from "../components/Panel";
 import { TextInput } from "../components/TextInput";
@@ -50,6 +50,41 @@ export function HistoryScreen({
     onCaptureChange(filtering);
   }, [filtering, onCaptureChange]);
 
+  const updatingCovers = useRef(false);
+
+  const updateOne = async (path: string) => {
+    const result = await jukebox.updateCover(path).catch(() => ({ status: "not-found" as const }));
+    onFlash(
+      result.status === "updated"
+        ? t("flash.coverUpdated", { source: result.source })
+        : t("flash.coverNotFound"),
+    );
+  };
+
+  const updateAll = async () => {
+    if (updatingCovers.current) return;
+    updatingCovers.current = true;
+    const paths = [
+      ...new Set(jukebox.history.list({ limit: 1_000_000 }).map((entry) => entry.path)),
+    ];
+    let updated = 0;
+    let missing = 0;
+    try {
+      for (const [i, path] of paths.entries()) {
+        onFlash(t("flash.coversProgress", { done: i + 1, total: paths.length }));
+        if (!(await pathExists(path))) continue;
+        const result = await jukebox
+          .updateCover(path)
+          .catch(() => ({ status: "not-found" as const }));
+        if (result.status === "updated") updated++;
+        else missing++;
+      }
+    } finally {
+      updatingCovers.current = false;
+      onFlash(t("flash.coversDone", { updated, missing }));
+    }
+  };
+
   const exportCsv = async () => {
     const file = join(
       expandHome(jukebox.config.outputDir),
@@ -87,6 +122,8 @@ export function HistoryScreen({
         ]);
         onFlash(t("flash.queued", { n: 1 }));
       } else if (input === "e") void exportCsv();
+      else if (input === "t" && selected) void updateOne(selected.path);
+      else if (input === "T") void updateAll();
       else if (key.escape && filter) setFilter("");
     },
     { isActive: active },
@@ -166,6 +203,7 @@ export function HistoryScreen({
             ["o", t("key.openFolder")],
             ["r", t("key.redownload")],
             ["e", t("key.export")],
+            ["t/T", t("key.updateCover")],
             ["d", t("key.removeHistory")],
             ["?", t("key.help")],
           ]}

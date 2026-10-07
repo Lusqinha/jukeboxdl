@@ -39,7 +39,7 @@ jukeboxdl is a front end for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffm
 - Listen to a preview before downloading (needs `mpv` or `ffplay`).
 - Save as MP3, or as Opus/M4A when you want the original YouTube audio without re-encoding.
 - Write ID3/Vorbis/MP4 tags. Artist and title come from YouTube Music metadata when it exists, from "Artist - Title" in the video title otherwise, and missing album, year and track number can be filled in from MusicBrainz.
-- Embed the cover. Tracks from YouTube Music get a square crop of the album art; regular videos keep the 16:9 frame.
+- Embed the cover, taken from the Cover Art Archive, Deezer or iTunes when the track is found there, or from the YouTube thumbnail otherwise. Covers of tracks already downloaded can be replaced later without touching the audio.
 - Normalize the volume so every track plays at about the same level (around -14 LUFS), and write ReplayGain tags (R128 for Opus). For MP3 the adjustment happens in the same conversion; Opus and M4A get re-encoded when normalization is on.
 - Cut talking and intros with SponsorBlock, and split long mixes into one file per chapter.
 - Send a group of downloads to another folder or a USB drive without touching the default folder. Removable drives are detected with their free space.
@@ -93,7 +93,7 @@ Type a search and press enter, move to the results with `↓`, mark tracks with 
 | Lists | `↑↓` or `j` `k` move · `pgup` `pgdn` or `ctrl+u` `ctrl+d` jump · `g` `G` first/last |
 | Search | `enter` download · `space` mark · `a` mark all · `p` preview · `c` split by chapters · `f` length filter · `v` hide live/lyrics |
 | Downloads | `x`/`X` cancel · `r`/`R` retry · `c` clear finished · `o` open folder |
-| History | `/` filter · `o` open folder · `r` download again · `e` export CSV · `d` remove entry |
+| History | `/` filter · `o` open folder · `r` download again · `e` export CSV · `t`/`T` update cover (one/all) · `d` remove entry |
 
 ### Commands
 
@@ -106,6 +106,7 @@ jukeboxdl search -n 5 "alan walker" --json
 jukeboxdl config set filenameTemplate "{artist}/{album|Singles}/{track:02} - {title}"
 jukeboxdl config preview "{playlist}/{index:03} {title}"
 jukeboxdl history export -f csv -o history.csv
+jukeboxdl covers update --all --source deezer        # replace covers of downloaded tracks
 jukeboxdl deps update
 jukeboxdl doctor
 ```
@@ -131,6 +132,7 @@ Settings live in `~/.config/jukeboxdl/config.json` and can be changed from the C
     "normalize": true,
     "replayGain": true
   },
+  "cover": { "source": "auto" },
   "musicbrainz": true,
   "notifications": true,
   "concurrency": 3,

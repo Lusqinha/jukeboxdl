@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Covers
+
+- New `cover.source` setting. `auto` (the default) tries the Cover Art Archive through MusicBrainz, then Deezer, and falls back to the YouTube thumbnail. You can also pick `musicbrainz`, `deezer`, `itunes` or `youtube`. A result is used only when its title and artist match the track.
+- Covers of tracks you already downloaded can be replaced: `jukeboxdl covers update <files>` or `--all` for the whole history, and `t`/`T` in the History tab. Audio and tags stay as they were.
+
 ### Downloads
 
 - Volume normalization, on by default: every track is adjusted to about -14 LUFS with a -1.5 dBTP peak ceiling. MP3 files get it during the single conversion yt-dlp already does. Opus and M4A files have to be re-encoded for this, so turn `audio.normalize` off if you prefer the original stream untouched.

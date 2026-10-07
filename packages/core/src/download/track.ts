@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import type { AudioFormat, Config } from "../config/schema";
+import { findCover } from "../covers/providers";
 import { moveFile, pathExists } from "../fs";
 import type { TrackMetadata } from "../metadata";
 import { enrichFromMusicBrainz } from "../metadata/musicbrainz";
@@ -38,7 +39,7 @@ export interface TrackResult {
 
 export type TrackConfig = Pick<
   Config,
-  "outputDir" | "filenameTemplate" | "playlistTemplate" | "audio" | "musicbrainz"
+  "outputDir" | "filenameTemplate" | "playlistTemplate" | "audio" | "musicbrainz" | "cover"
 >;
 
 export interface DownloadTrackOptions {
@@ -84,6 +85,33 @@ export function chapterMetadata(
 
 /** Faixas do YouTube Music (com campos de música) trazem a capa quadrada no meio do quadro. */
 const isMusicTrack = (info: YtDlpInfo) => Boolean(info.track || info.artists?.length || info.album);
+
+/** Capa da fonte configurada (APIs) ou, sem resultado, a thumbnail do YouTube. */
+async function chooseCover(
+  metadata: TrackMetadata,
+  thumbnail: string | undefined,
+  info: YtDlpInfo,
+  { ffmpeg, config, signal, fetch: fetchImpl }: DownloadTrackOptions,
+  workdir: string,
+): Promise<PreparedCover | undefined> {
+  const found = await findCover(
+    { title: metadata.title, artist: metadata.artist, album: metadata.album },
+    config.cover.source,
+    {
+      signal,
+      ...(fetchImpl && { fetch: fetchImpl }),
+    },
+  );
+  if (found) {
+    const path = join(workdir, "cover-api.jpg");
+    await writeFile(path, found.image);
+    const cover = await prepareCover(ffmpeg, path, workdir, { square: true, signal });
+    if (cover) return cover;
+  }
+  return thumbnail
+    ? prepareCover(ffmpeg, thumbnail, workdir, { square: isMusicTrack(info), signal })
+    : undefined;
+}
 
 async function finalize(
   input: string,
@@ -167,10 +195,9 @@ export async function downloadTrack(
     });
 
     onProgress?.({ phase: "tag" });
-    const cover =
-      config.audio.embedCover && files.cover
-        ? await prepareCover(ffmpeg, files.cover, workdir, { square: isMusicTrack(info), signal })
-        : undefined;
+    const cover = config.audio.embedCover
+      ? await chooseCover(metadata, files.cover, info, options, workdir)
+      : undefined;
 
     if (!split || files.chapters.length === 0) {
       await finalize(files.audio, destination, metadata, cover, options, workdir);

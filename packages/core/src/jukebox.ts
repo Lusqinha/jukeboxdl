@@ -4,6 +4,8 @@ import type { BinaryName } from "./binaries/platform";
 import { which } from "./binaries/which";
 import type { Config } from "./config/schema";
 import { loadConfig } from "./config/store";
+import type { CoverSource } from "./covers/providers";
+import { updateCover } from "./covers/update";
 import { DownloadQueue, FINISHED_STATUSES, type Job, type JobWorker } from "./download/queue";
 import { downloadTrack, type TrackRequest } from "./download/track";
 import { BinaryError } from "./errors";
@@ -63,6 +65,7 @@ export class Jukebox {
     private readonly persistQueue: boolean,
     retries: number,
     ytDlpPath: string,
+    private readonly ffprobe: string,
   ) {
     this.queue = new DownloadQueue(this.worker, {
       concurrency: currentConfig.concurrency,
@@ -99,6 +102,15 @@ export class Jukebox {
     this.queue.setConcurrency(config.concurrency);
   }
 
+  /** Busca e embute uma capa nova num arquivo já baixado (fonte da config por padrão). */
+  updateCover(
+    file: string,
+    source: CoverSource = this.currentConfig.cover.source,
+    signal?: AbortSignal,
+  ) {
+    return updateCover(file, { source, ffmpeg: this.ffmpeg, ffprobe: this.ffprobe, signal });
+  }
+
   /** Se o vídeo já foi baixado e o arquivo ainda existe. */
   async isDownloaded(videoId: string): Promise<boolean> {
     const entry = this.history.find(videoId);
@@ -108,7 +120,7 @@ export class Jukebox {
   static async create(options: JukeboxOptions = {}): Promise<Jukebox> {
     const paths = options.paths ?? getAppPaths();
     const config = options.config ?? (await loadConfig(paths.configFile));
-    const [ytDlp, ffmpeg] = await Promise.all([
+    const [ytDlp, ffmpeg, ffprobe] = await Promise.all([
       requireBinary("yt-dlp", config, paths),
       requireBinary("ffmpeg", config, paths),
       requireBinary("ffprobe", config, paths),
@@ -125,6 +137,7 @@ export class Jukebox {
       options.persistQueue ?? false,
       options.retries ?? 2,
       ytDlp,
+      ffprobe,
     );
   }
 

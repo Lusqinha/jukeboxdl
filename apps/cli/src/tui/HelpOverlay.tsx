@@ -55,6 +55,7 @@ function sections(): Section[] {
         ["o", t("key.openFolder")],
         ["r", t("key.redownload")],
         ["e", t("key.export")],
+        ["t / T", t("help.updateCover")],
         ["d", t("key.removeHistory")],
       ],
     },
