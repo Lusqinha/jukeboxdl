@@ -15,6 +15,7 @@ export { moveFile, pathExists } from "./fs";
 export * from "./history/history";
 export * from "./i18n";
 export * from "./jukebox";
+export * from "./library/library";
 export { debug, enableDebugLog, isDebugLogEnabled } from "./log";
 export type { TrackMetadata } from "./metadata";
 export * from "./paths";

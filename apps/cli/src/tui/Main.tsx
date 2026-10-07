@@ -6,7 +6,6 @@ import {
   installYtDlp,
   type Jukebox,
   notify,
-  type PlayerState,
   rememberDestination,
   setLocale,
   type ThemeName,
@@ -18,111 +17,28 @@ import { GradientRule } from "../components/GradientRule";
 import { JobSummary, summarize } from "../components/JobRow";
 import { ProgressBar } from "../components/ProgressBar";
 import { t } from "../lib/i18n";
+import { useLibrary, usePlayerState } from "../lib/use-player";
 import { useQueueJobs } from "../lib/use-queue";
 import { ConfigScreen } from "./ConfigScreen";
 import { DestinationPicker } from "./DestinationPicker";
 import { DownloadsScreen } from "./DownloadsScreen";
 import { HelpOverlay } from "./HelpOverlay";
-import { HistoryScreen } from "./HistoryScreen";
+import { type LibraryMode, LibraryView } from "./LibraryView";
+import { PlayerBar } from "./PlayerBar";
 import { SearchScreen } from "./SearchScreen";
-import { TapeDeck } from "./TapeDeck";
+import { Sidebar, VIEWS, type View } from "./Sidebar";
 import { ThemeProvider, useTheme } from "./theme";
 
-const TABS = ["Buscar", "Downloads", "Histórico", "Config"] as const;
-type Tab = (typeof TABS)[number];
-
-const TAB_LABEL = {
-  Buscar: "tab.search",
-  Downloads: "tab.downloads",
-  Histórico: "tab.history",
-  Config: "tab.config",
-} as const satisfies Record<Tab, Parameters<typeof t>[0]>;
-
-const tabLabel = (tab: Tab) => t(TAB_LABEL[tab]);
-const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-
-// Cabeçalho (1) + divisor (1) + separador do rodapé (1) + rodapé (1).
-const CHROME_ROWS = 4;
-
-function Header({
-  tab,
-  pending,
-  destination,
-}: {
-  tab: Tab;
-  pending: number;
-  destination: string | null;
-}) {
-  const theme = useTheme();
-  return (
-    <Box>
-      {theme.retro ? (
-        <Text color={theme.accent} bold>
-          {" ♪ jukeboxdl "}
-        </Text>
-      ) : (
-        <Text backgroundColor="cyan" color="black" bold>
-          {" ♪ jukeboxdl "}
-        </Text>
-      )}
-      <Text> </Text>
-      {TABS.map((name, i) => {
-        const selected = name === tab;
-        const badge = name === "Downloads" && pending > 0 ? ` ${pending}` : "";
-        if (theme.retro) {
-          const label = tabLabel(name);
-          return (
-            <Text key={name}>
-              <Text> </Text>
-              <Text color={selected ? theme.accent : theme.link} bold={selected}>
-                [ <Text color={theme.muted}>{i + 1}</Text>{" "}
-                <Text underline color={selected ? theme.accent : theme.link}>
-                  {label}
-                </Text>
-                {badge && <Text color={theme.notice}>{badge}</Text>} ]
-              </Text>
-            </Text>
-          );
-        }
-        return (
-          <Text key={name}>
-            <Text> </Text>
-            {selected ? (
-              <Text backgroundColor={theme.selectionBg} color="cyan" bold>
-                {` ${i + 1} ${capitalize(tabLabel(name))}${badge} `}
-              </Text>
-            ) : (
-              <Text>
-                <Text color={theme.muted}>{` ${i + 1} `}</Text>
-                {capitalize(tabLabel(name))}
-                <Text color="cyan">{badge} </Text>
-              </Text>
-            )}
-          </Text>
-        );
-      })}
-      {destination && (
-        <>
-          <Spacer />
-          <Text color={theme.notice} wrap="truncate-start">
-            → {destination}{" "}
-          </Text>
-        </>
-      )}
-    </Box>
-  );
-}
-
-function usePlayerState(player: Jukebox["player"]): PlayerState {
-  const [state, setState] = useState<PlayerState>(player.state);
-  useEffect(() => {
-    player.on("change", setState);
-    return () => {
-      player.off("change", setState);
-    };
-  }, [player]);
-  return state;
-}
+// Separador (1) + barra do player (1) + linha de status (1).
+const FOOTER_ROWS = 3;
+const LIBRARY_MODES: Partial<Record<View, LibraryMode>> = {
+  library: "tracks",
+  albums: "albums",
+  artists: "artists",
+  folders: "folders",
+};
+/** Depois que downloads terminam, espera um pouco antes de reler a biblioteca. */
+const RESCAN_DELAY_MS = 1500;
 
 function Screens({
   jukebox,
@@ -137,24 +53,20 @@ function Screens({
 }) {
   const theme = useTheme();
   const { columns, rows } = useWindowSize();
-  const [tab, setTab] = useState<Tab>("Buscar");
-  // Quais telas estão com um campo de texto focado (aí números e atalhos vão para o campo).
-  const [captures, setCaptures] = useState<Record<Tab, boolean>>({
-    Buscar: true,
-    Downloads: false,
-    Histórico: false,
-    Config: false,
-  });
-  const capture = captures[tab];
+  const [view, setView] = useState<View>("library");
+  const [focus, setFocus] = useState<"sidebar" | "content">("content");
+  // Telas com campo de texto focado: aí números e atalhos vão para o campo.
+  const [captures, setCaptures] = useState<Partial<Record<View, boolean>>>({});
+  const capture = Boolean(captures[view]);
   const captureSetters = useMemo(
     () =>
       Object.fromEntries(
-        TABS.map((screen) => [
+        VIEWS.map((screen) => [
           screen,
           (value: boolean) =>
-            setCaptures((c) => (c[screen] === value ? c : { ...c, [screen]: value })),
+            setCaptures((c) => (Boolean(c[screen]) === value ? c : { ...c, [screen]: value })),
         ]),
-      ) as Record<Tab, (value: boolean) => void>,
+      ) as Record<View, (value: boolean) => void>,
     [],
   );
   const [flash, setFlash] = useState<string | null>(null);
@@ -170,6 +82,7 @@ function Screens({
   const notified = useRef(new Set<string>());
   const jobs = useQueueJobs(jukebox.queue);
   const player = usePlayerState(jukebox.player);
+  const library = useLibrary(jukebox.library);
   const summary = summarize(jobs);
   const busy = summary.active + summary.queued > 0;
 
@@ -183,16 +96,27 @@ function Screens({
   // biome-ignore lint/correctness/useExhaustiveDependencies: avisos únicos ao abrir
   useEffect(() => {
     if (restored > 0) showFlash(t("flash.restored", { n: restored }));
+    void jukebox.scanLibrary();
     checkYtDlpUpdate({ binaries: jukebox.config.binaries })
       .then((status) => setUpdate(status?.outdated ? status : null))
       .catch(() => undefined);
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reage só a mudanças do player
+  // Downloads concluídos e troca de destino entram na biblioteca.
+  useEffect(() => {
+    if (summary.done === 0 && !sessionDir) return;
+    const timer = setTimeout(
+      () => void jukebox.scanLibrary(sessionDir ? [sessionDir] : []),
+      RESCAN_DELAY_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [summary.done, sessionDir, jukebox]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reage só a erros do player
   useEffect(() => {
     if (player.status !== "error") return;
-    showFlash(player.unavailable ? t("flash.previewUnavailable") : player.message);
-  }, [player]);
+    showFlash(player.unavailable ? t("player.noEngine") : (player.error ?? ""));
+  }, [player.status, player.error]);
 
   // Notificação do sistema quando a fila esvazia, com o que terminou desde a última.
   useEffect(() => {
@@ -237,14 +161,35 @@ function Screens({
     setSessionDir(path);
     if (path) void rememberDestination(path);
     showFlash(path ? t("dest.changed", { path }) : t("dest.reset"));
-    // Escolhido na aba Downloads, o destino vale também para o que ainda está na fila.
-    if (tab === "Downloads") {
+    // Escolhido na tela de downloads, o destino vale também para o que ainda está na fila.
+    if (view === "downloads") {
       const moved = jukebox.queue.updateQueued((request) => ({
         ...request,
         outputDir: path ?? undefined,
       }));
       if (moved > 0) showFlash(t("dest.moved", { n: moved }));
     }
+  };
+
+  const goTo = (next: View) => {
+    setView(next);
+    setFocus("content");
+  };
+
+  /** Atalhos do player, válidos em qualquer tela (o espaço marca faixas na busca). */
+  const handlePlayerKey = (input: string): boolean => {
+    const p = jukebox.player;
+    if (input === " " && view !== "search") void p.togglePause();
+    else if (input === ">") void p.next();
+    else if (input === "<") void p.previous();
+    else if (input === "]") p.seek(10);
+    else if (input === "[") p.seek(-10);
+    else if (input === "+" || input === "=") p.changeVolume(5);
+    else if (input === "-") p.changeVolume(-5);
+    else if (input === "S") p.toggleShuffle();
+    else if (input === "L") p.cycleRepeat();
+    else return false;
+    return true;
   };
 
   useInput((input, key) => {
@@ -255,28 +200,40 @@ function Screens({
     }
     if (key.ctrl && input === "c") return requestQuit();
     if (confirmQuit && input !== "q") setConfirmQuit(false);
-    if (key.tab && !(tab === "Config" && capture)) {
-      const step = key.shift ? -1 : 1;
-      setTab((current) => TABS[(TABS.indexOf(current) + step + TABS.length) % TABS.length] as Tab);
+    if (key.tab && !(view === "config" && capture)) {
+      setFocus((f) => (f === "sidebar" ? "content" : "sidebar"));
       return;
     }
-    if (capture) return;
+    if (capture && focus === "content") return;
+
+    const number = Number(input);
+    if (number >= 1 && number <= VIEWS.length) return goTo(VIEWS[number - 1] as View);
     if (input === "?") return setShowHelp(true);
     if (input === "q") return requestQuit();
     if (input === "U") return updateYtDlp();
-    if (input === "d" && (tab === "Buscar" || tab === "Downloads"))
+    if (handlePlayerKey(input)) return;
+
+    if (focus === "sidebar") {
+      const index = VIEWS.indexOf(view);
+      if (key.upArrow || input === "k")
+        setView(VIEWS[(index - 1 + VIEWS.length) % VIEWS.length] as View);
+      else if (key.downArrow || input === "j") setView(VIEWS[(index + 1) % VIEWS.length] as View);
+      else if (key.return || key.rightArrow || input === "l") setFocus("content");
+      return;
+    }
+
+    if (input === "d" && (view === "search" || view === "downloads" || LIBRARY_MODES[view])) {
       return setPickingDestination(true);
-    if (input === "/" && tab !== "Histórico") {
-      setTab("Buscar");
+    }
+    if (input === "/" && (view === "downloads" || view === "config")) {
+      goTo("search");
       setFocusRequest((n) => n + 1);
       return;
     }
-    const number = Number(input);
-    if (number >= 1 && number <= TABS.length) setTab(TABS[number - 1] as Tab);
-    else if (key.escape && tab !== "Buscar") setTab("Buscar");
+    if (key.escape && (view === "downloads" || view === "config")) setFocus("sidebar");
   });
 
-  const height = Math.max(8, rows - CHROME_ROWS);
+  const height = Math.max(8, rows - FOOTER_ROWS);
   const running = jobs.filter((j) =>
     ["downloading", "converting", "tagging", "retrying"].includes(j.status),
   );
@@ -288,81 +245,101 @@ function Screens({
           running.reduce((sum, j) => sum + j.progress, 0)) /
         (summary.total - summary.canceled || 1)
       : 0;
-  const screenActive = (screen: Tab) => tab === screen && !showHelp && !pickingDestination;
+  const overlay = showHelp || pickingDestination;
+  const screenActive = (screen: View) => view === screen && focus === "content" && !overlay;
+  const scanning = library.progress
+    ? t("library.scanning", { scanned: library.progress.scanned, total: library.progress.total })
+    : null;
 
   return (
     <Box flexDirection="column" width={columns} height={rows}>
-      <Header tab={tab} pending={summary.active + summary.queued} destination={sessionDir} />
+      <Box height={height}>
+        <Sidebar
+          view={view}
+          focused={focus === "sidebar"}
+          pending={summary.active + summary.queued}
+          destination={sessionDir}
+          height={height}
+        />
+        <Box flexDirection="column" flexGrow={1} paddingLeft={1} overflow="hidden">
+          {/* As telas ficam montadas para preservar o estado ao trocar de seção. */}
+          {(Object.entries(LIBRARY_MODES) as Array<[View, LibraryMode]>).map(([screen, mode]) => (
+            <Box
+              key={screen}
+              display={view === screen ? "flex" : "none"}
+              flexDirection="column"
+              flexGrow={1}
+            >
+              <LibraryView
+                jukebox={jukebox}
+                mode={mode}
+                tracks={library.tracks}
+                scanning={scanning}
+                playingId={player.status === "idle" ? undefined : player.track?.id}
+                active={screenActive(screen)}
+                height={height}
+                outputDir={sessionDir}
+                onFlash={showFlash}
+                onCaptureChange={captureSetters[screen]}
+                onBack={() => setFocus("sidebar")}
+              />
+            </Box>
+          ))}
+          <Box display={view === "search" ? "flex" : "none"} flexDirection="column" flexGrow={1}>
+            <SearchScreen
+              jukebox={jukebox}
+              active={screenActive("search")}
+              height={height}
+              onFlash={showFlash}
+              onCaptureChange={captureSetters.search}
+              focusRequest={focusRequest}
+              outputDir={sessionDir}
+            />
+          </Box>
+          <Box display={view === "downloads" ? "flex" : "none"} flexDirection="column" flexGrow={1}>
+            <DownloadsScreen
+              jukebox={jukebox}
+              jobs={jobs}
+              active={screenActive("downloads")}
+              height={height}
+            />
+          </Box>
+          <Box display={view === "config" ? "flex" : "none"} flexDirection="column" flexGrow={1}>
+            <ConfigScreen
+              jukebox={jukebox}
+              active={screenActive("config")}
+              onEditingChange={captureSetters.config}
+              onFlash={showFlash}
+              onSaved={onConfigSaved}
+            />
+          </Box>
+        </Box>
+      </Box>
+
       {theme.retro ? (
         <GradientRule width={columns} />
       ) : (
         <Text color={theme.muted}>{"─".repeat(columns)}</Text>
       )}
-
-      <Box flexDirection="column" height={height} overflow="hidden">
-        {/* As telas ficam montadas para preservar o estado ao trocar de aba. */}
-        <Box display={tab === "Buscar" ? "flex" : "none"} flexDirection="column" flexGrow={1}>
-          <SearchScreen
-            jukebox={jukebox}
-            active={screenActive("Buscar")}
-            height={height}
-            onFlash={showFlash}
-            onCaptureChange={captureSetters.Buscar}
-            focusRequest={focusRequest}
-            outputDir={sessionDir}
-          />
-        </Box>
-        <Box display={tab === "Downloads" ? "flex" : "none"} flexDirection="column" flexGrow={1}>
-          <DownloadsScreen
-            jukebox={jukebox}
-            jobs={jobs}
-            active={screenActive("Downloads")}
-            height={height}
-          />
-        </Box>
-        <Box display={tab === "Histórico" ? "flex" : "none"} flexDirection="column" flexGrow={1}>
-          <HistoryScreen
-            jukebox={jukebox}
-            active={screenActive("Histórico")}
-            height={height}
-            refreshKey={summary.done}
-            onCaptureChange={captureSetters.Histórico}
-            onFlash={showFlash}
-            outputDir={sessionDir}
-          />
-        </Box>
-        <Box display={tab === "Config" ? "flex" : "none"} flexDirection="column" flexGrow={1}>
-          <ConfigScreen
-            jukebox={jukebox}
-            active={screenActive("Config")}
-            onEditingChange={captureSetters.Config}
-            onFlash={showFlash}
-            onSaved={onConfigSaved}
-          />
-        </Box>
-      </Box>
-
-      <Text color={theme.retro ? theme.bevelDark : theme.muted}>
-        {"─".repeat(Math.max(0, columns))}
-      </Text>
-      <Box>
+      <PlayerBar state={player} width={columns} />
+      <Box paddingX={1}>
         {flash ? (
           <Text color={confirmQuit ? theme.warning : theme.success} wrap="truncate-end">
             {flash}
           </Text>
         ) : (
           <Box gap={2} flexGrow={1}>
-            {busy && <ProgressBar value={overall} width={20} />}
+            {busy && <ProgressBar value={overall} width={16} />}
             <JobSummary jobs={jobs} />
             <Spacer />
-            {update && (
+            {update ? (
               <Text color={theme.notice} wrap="truncate-start">
                 {t("update.available", { current: update.current ?? "?", latest: update.latest })} ·{" "}
                 {update.managed ? t("update.pressU") : t("update.system")}
               </Text>
-            )}
-            {!update && (
+            ) : (
               <Text color={theme.muted}>
+                <Text color={theme.link}>tab</Text> {t("key.focus")} ·{" "}
                 <Text color={theme.link}>?</Text> {t("key.help")}
               </Text>
             )}
@@ -370,9 +347,6 @@ function Screens({
         )}
       </Box>
 
-      {tab !== "Downloads" && columns >= 90 && !showHelp && (
-        <TapeDeck jobs={jobs} bottom={5} player={player} />
-      )}
       {showHelp && <HelpOverlay width={columns} />}
       {pickingDestination && (
         <DestinationPicker

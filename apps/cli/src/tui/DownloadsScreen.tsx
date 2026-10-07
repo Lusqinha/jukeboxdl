@@ -7,6 +7,7 @@ import { StarBackdrop } from "../components/Starfield";
 import { t } from "../lib/i18n";
 import { KeyHints } from "./KeyHints";
 import { ScrollHint, useCursor } from "./list";
+import { SIDEBAR_WIDTH } from "./Sidebar";
 import { useTheme } from "./theme";
 
 export function DownloadsScreen({
@@ -53,7 +54,7 @@ export function DownloadsScreen({
       >
         {jobs.length === 0 ? (
           <StarBackdrop
-            width={Math.max(10, columns - (theme.retro ? 4 : 0))}
+            width={Math.max(10, columns - SIDEBAR_WIDTH - (theme.retro ? 5 : 1))}
             height={emptyHeight}
             contentWidth={60}
             contentHeight={2}

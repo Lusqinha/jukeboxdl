@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Player and navigation
+
+- Music player for the tracks you downloaded: pause, seek, volume, shuffle and repeat, with a player bar always visible at the bottom. It uses `mpv` when installed and falls back to `ffplay`.
+- New layout with a sidebar: library, albums, artists, folders, search, downloads and config. `tab` switches the focus and `1` to `7` jump to a section.
+- The library reads your music folder and the destinations you used (USB drives included), caches the tags in SQLite and can be grouped by album, artist or folder. It replaces the history tab; covers, re-download and export moved there.
+
 ### Covers
 
 - New `cover.source` setting. `auto` (the default) tries the Cover Art Archive through MusicBrainz, then Deezer, and falls back to the YouTube thumbnail. You can also pick `musicbrainz`, `deezer`, `itunes` or `youtube`. A result is used only when its title and artist match the track.

@@ -18,6 +18,7 @@ import { t } from "../lib/i18n";
 import { KeyHints } from "./KeyHints";
 import { ScrollHint, useCursor } from "./list";
 import { Pointer } from "./Pointer";
+import { SIDEBAR_WIDTH } from "./Sidebar";
 import { useTheme } from "./theme";
 
 type Results =
@@ -28,7 +29,7 @@ const PAGE_SIZE = 20;
 /** Faltando esta quantidade de itens para o fim da lista, a próxima página é carregada. */
 const LOAD_MORE_THRESHOLD = 3;
 /** Letras que são atalhos na lista (as demais começam uma nova busca). */
-const LIST_SHORTCUTS = /^[acdfgjkpqvGU?/1-4]$/;
+const LIST_SHORTCUTS = /^[acdfgjkpqvGLSU?/1-7<>[\]+=-]$/;
 
 const nextDuration: Record<DurationFilter, DurationFilter> = {
   any: "short",
@@ -241,7 +242,15 @@ export function SearchScreen({
         setMarked((m) => (m.size === items.length ? new Set() : new Set(items.map((i) => i.id))));
         return;
       }
-      if (input === "p" && current) return void jukebox.player.toggle(current);
+      if (input === "p" && current) {
+        return void jukebox.player.togglePreview({
+          id: current.id,
+          title: current.title,
+          artist: current.channel,
+          url: current.url,
+          duration: current.duration,
+        });
+      }
       if (input === "c") return enqueue(true);
       if (input === "f") {
         setFilters((f) => ({ ...f, duration: nextDuration[f.duration] }));
@@ -358,7 +367,7 @@ export function SearchScreen({
 
   // Área disponível para o estado vazio: tudo menos campo, moldura e atalhos.
   const emptyHeight = Math.max(3, height - 3 - panelChrome(theme, true) - 2);
-  const emptyWidth = Math.max(10, columns - (theme.retro ? 4 : 0));
+  const emptyWidth = Math.max(10, columns - SIDEBAR_WIDTH - (theme.retro ? 5 : 1));
   const empty = (
     <StarBackdrop
       width={emptyWidth}
