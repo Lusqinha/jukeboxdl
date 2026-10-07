@@ -12,24 +12,8 @@ Download music from YouTube and YouTube Music as tagged MP3, Opus or M4A files, 
 
 </div>
 
-```
- ♪ jukeboxdl   [ 1 search ] [ 2 downloads 2 ] [ 3 history ] [ 4 config ]      → /run/media/you/USB
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ » ncs alan walker                                                                            │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ // results                              20 results · up to 10 min · no live/lyrics · 2 marked │
-│ ──────────────────────────────────────────────────────────────────────────────────────────── │
-│ ❯ ◉ Alan Walker - Fade [NCS Release]                          NoCopyrightSounds    4:21      │
-│   ◉ Alan Walker - Spectre [NCS Release]                       NoCopyrightSounds    3:47      │
-│   ○ Alan Walker - Force [NCS Release]                         NoCopyrightSounds    4:02      │
-│   ○ Alan Walker - Dreamer | House | NCS             ┌────────────────────────────────────────┐│
-│   ○ Alan Walker - Sing Me to Sleep                  │ // recording              [ 1 on tape ]││
-│     ▼ 15 below                                      │ (◐)═(◐) Alan Walker - Fade             ││
-└─────────────────────────────────────────────────────│ ▃▅▂▇▄▆▂▅ ▰▰▰▰▰▰▰▱▱▱▱▱  58%  2.1 MB/s   │┘
-[enter] download · [space] mark · [p] listen · [c] chapters · [f/v] filters · [?] shortcuts
-```
+<img width="1277" height="727" alt="image" src="https://github.com/user-attachments/assets/7a9b5341-3f17-4e1f-b108-9d9d99b48968" />
+
 
 jukeboxdl is a front end for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/). You search or paste a link, pick tracks, and get files named and tagged the way you configured, with the cover embedded. It keeps a history so the same track is not downloaded twice, and it remembers an unfinished queue between sessions.
 
