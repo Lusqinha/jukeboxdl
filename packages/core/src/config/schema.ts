@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COVER_SOURCES } from "../covers/providers";
 import { LOCALES } from "../i18n";
 import { validateTemplate } from "../template/template";
 
@@ -39,12 +40,16 @@ export const configSchema = z.object({
       embedCover: z.boolean().default(true),
       /** Remove trechos sem música (falas, introduções) usando o SponsorBlock. */
       removeNonMusic: z.boolean().default(true),
+      /** Normaliza o volume do próprio áudio (alvo -14 LUFS); opus/m4a passam a ser recodificados. */
+      normalize: z.boolean().default(true),
       /** Grava tags ReplayGain para tocar tudo no mesmo volume. */
       replayGain: z.boolean().default(true),
     })
     .prefault({}),
   /** Quantos downloads rodam ao mesmo tempo. */
   concurrency: z.number().int().min(1).max(8).default(3),
+  /** De onde vem a capa: auto tenta Cover Art Archive e Deezer antes da thumbnail do YouTube. */
+  cover: z.object({ source: z.enum(COVER_SOURCES).default("auto") }).prefault({}),
   /** Completar álbum, ano e número da faixa pelo MusicBrainz quando faltarem. */
   musicbrainz: z.boolean().default(true),
   /** Notificação do sistema quando a fila termina. */

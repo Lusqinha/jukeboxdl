@@ -2,6 +2,20 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
 
+export interface LibraryRow {
+  path: string;
+  root: string;
+  mtime: number;
+  size: number;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  track: number | null;
+  year: number | null;
+  duration: number | null;
+  youtube_id: string | null;
+}
+
 export interface HistoryEntry {
   videoId: string;
   path: string;
@@ -40,6 +54,20 @@ const MIGRATIONS: string[] = [
      request TEXT NOT NULL,
      position INTEGER NOT NULL
    );`,
+  `CREATE TABLE library (
+     path TEXT PRIMARY KEY,
+     root TEXT NOT NULL,
+     mtime REAL NOT NULL,
+     size INTEGER NOT NULL,
+     title TEXT NOT NULL,
+     artist TEXT,
+     album TEXT,
+     track INTEGER,
+     year INTEGER,
+     duration REAL,
+     youtube_id TEXT
+   );
+   CREATE INDEX library_root ON library (root);`,
 ];
 
 function fromRow(row: Row): HistoryEntry {
@@ -144,6 +172,28 @@ export class History {
       )
       .all();
     return rows.map((row) => ({ id: row.id, request: JSON.parse(row.request) as T }));
+  }
+
+  /** Faixas da biblioteca (cache da varredura das pastas de música). */
+  libraryRows(): LibraryRow[] {
+    return this.db.prepare<[], LibraryRow>("SELECT * FROM library").all();
+  }
+
+  libraryUpsert(rows: LibraryRow[]): void {
+    const insert = this.db.prepare(
+      `INSERT OR REPLACE INTO library (path, root, mtime, size, title, artist, album, track, year, duration, youtube_id)
+       VALUES (@path, @root, @mtime, @size, @title, @artist, @album, @track, @year, @duration, @youtube_id)`,
+    );
+    this.db.transaction((items: LibraryRow[]) => {
+      for (const row of items) insert.run(row);
+    })(rows);
+  }
+
+  libraryRemove(paths: string[]): void {
+    const remove = this.db.prepare("DELETE FROM library WHERE path = ?");
+    this.db.transaction((items: string[]) => {
+      for (const path of items) remove.run(path);
+    })(paths);
   }
 
   close(): void {

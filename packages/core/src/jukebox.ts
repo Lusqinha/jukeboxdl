@@ -4,14 +4,18 @@ import type { BinaryName } from "./binaries/platform";
 import { which } from "./binaries/which";
 import type { Config } from "./config/schema";
 import { loadConfig } from "./config/store";
+import type { CoverSource } from "./covers/providers";
+import { updateCover } from "./covers/update";
 import { DownloadQueue, FINISHED_STATUSES, type Job, type JobWorker } from "./download/queue";
 import { downloadTrack, type TrackRequest } from "./download/track";
 import { BinaryError } from "./errors";
 import { pathExists } from "./fs";
 import { History } from "./history/history";
 import { t } from "./i18n/messages";
-import { type AppPaths, getAppPaths } from "./paths";
-import { Player } from "./player";
+import { Library } from "./library/library";
+import { type AppPaths, expandHome, getAppPaths } from "./paths";
+import { MusicPlayer } from "./player";
+import { loadRecentDestinations } from "./system/drives";
 import { type JsRuntime, YtDlp } from "./ytdlp/client";
 import type { PlaylistItem, ResolveResult, VideoSummary } from "./ytdlp/types";
 
@@ -53,7 +57,8 @@ async function requireBinary(name: BinaryName, config: Config, paths: AppPaths):
 export class Jukebox {
   readonly queue: DownloadQueue;
 
-  readonly player: Player;
+  readonly player: MusicPlayer;
+  readonly library: Library;
 
   private constructor(
     private currentConfig: Config,
@@ -63,12 +68,14 @@ export class Jukebox {
     private readonly persistQueue: boolean,
     retries: number,
     ytDlpPath: string,
+    private readonly ffprobe: string,
   ) {
     this.queue = new DownloadQueue(this.worker, {
       concurrency: currentConfig.concurrency,
       retries,
     });
-    this.player = new Player(ytdlp, ytDlpPath, ffmpeg);
+    this.player = new MusicPlayer(ytdlp, ytDlpPath, ffmpeg);
+    this.library = new Library(history, ffprobe);
     if (persistQueue) {
       this.queue.on("update", (job) => {
         if (job.status === "queued") this.history.saveQueued(job.id, job.request);
@@ -99,6 +106,26 @@ export class Jukebox {
     this.queue.setConcurrency(config.concurrency);
   }
 
+  /** Busca e embute uma capa nova num arquivo já baixado (fonte da config por padrão). */
+  updateCover(
+    file: string,
+    source: CoverSource = this.currentConfig.cover.source,
+    signal?: AbortSignal,
+  ) {
+    return updateCover(file, { source, ffmpeg: this.ffmpeg, ffprobe: this.ffprobe, signal });
+  }
+
+  /** Pastas que a biblioteca varre: a pasta de música e os destinos usados recentemente. */
+  async libraryRoots(extra: string[] = []): Promise<string[]> {
+    const recent = await loadRecentDestinations();
+    return [...new Set([expandHome(this.currentConfig.outputDir), ...recent, ...extra])];
+  }
+
+  /** Atualiza a biblioteca a partir das pastas de música. */
+  async scanLibrary(extra: string[] = []): Promise<void> {
+    await this.library.scan(await this.libraryRoots(extra));
+  }
+
   /** Se o vídeo já foi baixado e o arquivo ainda existe. */
   async isDownloaded(videoId: string): Promise<boolean> {
     const entry = this.history.find(videoId);
@@ -108,7 +135,7 @@ export class Jukebox {
   static async create(options: JukeboxOptions = {}): Promise<Jukebox> {
     const paths = options.paths ?? getAppPaths();
     const config = options.config ?? (await loadConfig(paths.configFile));
-    const [ytDlp, ffmpeg] = await Promise.all([
+    const [ytDlp, ffmpeg, ffprobe] = await Promise.all([
       requireBinary("yt-dlp", config, paths),
       requireBinary("ffmpeg", config, paths),
       requireBinary("ffprobe", config, paths),
@@ -125,6 +152,7 @@ export class Jukebox {
       options.persistQueue ?? false,
       options.retries ?? 2,
       ytDlp,
+      ffprobe,
     );
   }
 
@@ -160,7 +188,7 @@ export class Jukebox {
 
   /** Cancela os downloads e fecha o histórico. */
   async close(): Promise<void> {
-    this.player.stop();
+    this.player.dispose();
     this.queue.cancelAll();
     await this.queue.onIdle();
     this.history.close();

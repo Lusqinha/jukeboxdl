@@ -88,6 +88,7 @@ async function createJukebox(config: Partial<typeof DEFAULT_CONFIG> = {}) {
       outputDir: join(root, "music"),
       binaries: { ytDlp: join(binDir, "yt-dlp"), ffmpeg: join(binDir, "ffmpeg") },
       musicbrainz: false,
+      cover: { source: "youtube" as const },
       ...config,
     },
     paths: getAppPaths({ env: { JUKEBOXDL_HOME: join(root, "home") } }),
@@ -300,6 +301,7 @@ suite("Jukebox (integração com yt-dlp simulado)", () => {
       ...DEFAULT_CONFIG,
       outputDir: join(root, "music-resume"),
       musicbrainz: false,
+      cover: { source: "youtube" as const },
       binaries: { ytDlp: join(binDir, "yt-dlp"), ffmpeg: join(binDir, "ffmpeg") },
     };
     const first = await Jukebox.create({

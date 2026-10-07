@@ -24,7 +24,7 @@ function rateLimited<T>(task: () => Promise<T>): Promise<T> {
 }
 
 const escapeLucene = (text: string) => text.replace(/([+\-&|!(){}[\]^"~*?:\\/])/g, "\\$1");
-const normalize = (text: string) =>
+export const normalize = (text: string) =>
   text
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
@@ -32,11 +32,12 @@ const normalize = (text: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 
-interface MbRelease {
+export interface MbRelease {
+  id?: string;
   title?: string;
   status?: string;
   date?: string;
-  "release-group"?: { "primary-type"?: string; "secondary-types"?: string[] };
+  "release-group"?: { id?: string; "primary-type"?: string; "secondary-types"?: string[] };
   media?: Array<{ track?: Array<{ number?: string }> }>;
 }
 
@@ -79,33 +80,49 @@ export function matchRecording(
   });
 }
 
+export interface MbLookupOptions {
+  fetch?: typeof fetch;
+  signal?: AbortSignal | undefined;
+}
+
+/** Primeiro artista de créditos como "A, B" ou "A feat. B". */
+const mainArtist = (artist: string) => artist.split(/,| & | feat\.? /i)[0]?.trim() || artist;
+
+/** Lançamento mais provável para a faixa, ou `undefined` sem resposta confiável. */
+export async function lookupRelease(
+  { title, artist }: { title: string; artist: string },
+  { fetch: fetchImpl = fetch, signal }: MbLookupOptions = {},
+): Promise<MbRelease | undefined> {
+  const primary = mainArtist(artist);
+  const query = `recording:"${escapeLucene(title)}" AND artist:"${escapeLucene(primary)}"`;
+  const url = `${API}?query=${encodeURIComponent(query)}&fmt=json&limit=5`;
+  const timeout = AbortSignal.timeout(8000);
+  const response = await rateLimited(() =>
+    fetchImpl(url, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    }),
+  );
+  if (!response.ok) return undefined;
+  const data = (await response.json()) as { recordings?: MbRecording[] };
+  const recording = matchRecording(data.recordings ?? [], title, primary);
+  return recording && pickRelease(recording.releases ?? []);
+}
+
 /**
  * Completa álbum, ano e número da faixa pelo MusicBrainz. Só preenche campos vazios e
  * nunca falha: sem resposta confiável, devolve os metadados como estavam.
  */
 export async function enrichFromMusicBrainz(
   metadata: TrackMetadata,
-  {
-    fetch: fetchImpl = fetch,
-    signal,
-  }: { fetch?: typeof fetch; signal?: AbortSignal | undefined } = {},
+  options: MbLookupOptions = {},
 ): Promise<TrackMetadata> {
   if (!metadata.artist || (metadata.album && metadata.year && metadata.track)) return metadata;
-  const artist = metadata.artist.split(/,| & | feat\.? /i)[0]?.trim() ?? metadata.artist;
   try {
-    const query = `recording:"${escapeLucene(metadata.title)}" AND artist:"${escapeLucene(artist)}"`;
-    const url = `${API}?query=${encodeURIComponent(query)}&fmt=json&limit=5`;
-    const timeout = AbortSignal.timeout(8000);
-    const response = await rateLimited(() =>
-      fetchImpl(url, {
-        headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-        signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-      }),
+    const release = await lookupRelease(
+      { title: metadata.title, artist: metadata.artist },
+      options,
     );
-    if (!response.ok) return metadata;
-    const data = (await response.json()) as { recordings?: MbRecording[] };
-    const recording = matchRecording(data.recordings ?? [], metadata.title, artist);
-    const release = recording && pickRelease(recording.releases ?? []);
     if (!release) return metadata;
     const trackNumber = Number(release.media?.[0]?.track?.[0]?.number);
     debug(`musicbrainz: "${metadata.title}" → ${release.title} (${release.date ?? "?"})`);

@@ -1,3 +1,4 @@
+import { COVER_SOURCES } from "../covers/providers";
 import { ConfigError } from "../errors";
 import { LOCALES } from "../i18n";
 import { type CoreMessageKey, t } from "../i18n/messages";
@@ -22,7 +23,9 @@ export const CONFIG_FIELDS: readonly ConfigField[] = [
   { key: "audio.format", type: "choice", choices: AUDIO_FORMATS },
   { key: "audio.bitrate", type: "choice", choices: [128, 192, 256, 320] },
   { key: "audio.embedCover", type: "boolean" },
+  { key: "cover.source", type: "choice", choices: COVER_SOURCES },
   { key: "audio.removeNonMusic", type: "boolean" },
+  { key: "audio.normalize", type: "boolean" },
   { key: "audio.replayGain", type: "boolean" },
   { key: "musicbrainz", type: "boolean" },
   { key: "concurrency", type: "number" },

@@ -35,6 +35,9 @@ export const t = defineMessages({
     "field.audio.removeNonMusic.label": "Remover trechos sem música",
     "field.audio.removeNonMusic.description":
       "Corta falas e introduções usando o SponsorBlock (envia o id do vídeo para sponsor.ajay.app)",
+    "field.audio.normalize.label": "Normalizar volume",
+    "field.audio.normalize.description":
+      "Ajusta o áudio para -14 LUFS, todas as faixas no mesmo nível; em opus/m4a isso exige recodificar",
     "field.audio.replayGain.label": "ReplayGain",
     "field.audio.replayGain.description":
       "Mede o volume e grava tags para os players tocarem tudo no mesmo nível",
@@ -42,6 +45,9 @@ export const t = defineMessages({
     "field.musicbrainz.description": "Busca álbum, ano e número da faixa quando o vídeo não traz",
     "field.notifications.label": "Notificações",
     "field.notifications.description": "Avisa pelo sistema quando a fila de downloads termina",
+    "field.cover.source.label": "Fonte da capa",
+    "field.cover.source.description":
+      "auto: Cover Art Archive, depois Deezer, depois YouTube · musicbrainz · deezer · itunes · youtube",
     "field.audio.embedCover.label": "Embutir capa",
     "field.audio.embedCover.description": "Grava a thumbnail como capa",
     "field.concurrency.label": "Downloads simultâneos",
@@ -115,6 +121,9 @@ export const t = defineMessages({
     "field.audio.removeNonMusic.label": "Remove non-music parts",
     "field.audio.removeNonMusic.description":
       "Cuts talking and intros using SponsorBlock (sends the video id to sponsor.ajay.app)",
+    "field.audio.normalize.label": "Normalize volume",
+    "field.audio.normalize.description":
+      "Adjusts the audio to -14 LUFS so every track has the same level; opus/m4a need re-encoding for this",
     "field.audio.replayGain.label": "ReplayGain",
     "field.audio.replayGain.description":
       "Measures loudness and writes tags so players play everything at the same level",
@@ -123,6 +132,9 @@ export const t = defineMessages({
       "Looks up album, year and track number when the video lacks them",
     "field.notifications.label": "Notifications",
     "field.notifications.description": "System notification when the download queue finishes",
+    "field.cover.source.label": "Cover source",
+    "field.cover.source.description":
+      "auto: Cover Art Archive, then Deezer, then YouTube · musicbrainz · deezer · itunes · youtube",
     "field.audio.embedCover.label": "Embed cover",
     "field.audio.embedCover.description": "Saves the thumbnail as cover art",
     "field.concurrency.label": "Simultaneous downloads",

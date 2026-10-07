@@ -9,13 +9,22 @@ function sections(): Section[] {
     {
       title: t("help.global"),
       keys: [
-        ["tab / 1-4", t("help.tabs")],
-        ["/", t("help.jumpSearch")],
-        ["esc", t("help.backToSearch")],
+        ["1-7", t("help.tabs")],
+        ["tab", t("help.sidebar")],
         ["d", t("help.destination")],
         ["U", t("help.updateYtDlp")],
         ["?", t("help.toggleHelp")],
         ["q · ctrl+c", t("help.quit")],
+      ],
+    },
+    {
+      title: t("help.player"),
+      keys: [
+        [t("key.space"), t("help.playPause")],
+        ["> <", t("help.nextPrev")],
+        ["[ ]", t("help.seek")],
+        ["- +", t("help.volume")],
+        ["S · L", t("help.shuffleRepeat")],
       ],
     },
     {
@@ -27,16 +36,24 @@ function sections(): Section[] {
       ],
     },
     {
+      title: t("help.library"),
+      keys: [
+        ["enter", t("help.playFromHere")],
+        ["esc", t("key.back")],
+        ["/", t("key.filter")],
+        ["t / T", t("help.updateCover")],
+        ["o · r · e", `${t("key.openFolder")} · ${t("key.redownload")} · ${t("key.export")}`],
+        ["R", t("help.rescan")],
+      ],
+    },
+    {
       title: t("help.search"),
       keys: [
         ["enter", t("key.download")],
         [t("key.space"), t("key.mark")],
-        ["a", t("help.markAll")],
         ["p", t("help.preview")],
         ["c", t("help.splitChapters")],
-        ["f", t("help.durationFilter")],
-        ["v", t("help.versionsFilter")],
-        ["…", t("help.typeToSearch")],
+        ["f · v", `${t("help.durationFilter")} · ${t("filter.hideVersions")}`],
       ],
     },
     {
@@ -48,23 +65,21 @@ function sections(): Section[] {
         ["o", t("key.openFolder")],
       ],
     },
-    {
-      title: t("help.history"),
-      keys: [
-        ["/", t("key.filter")],
-        ["o", t("key.openFolder")],
-        ["r", t("key.redownload")],
-        ["e", t("key.export")],
-        ["d", t("key.removeHistory")],
-      ],
-    },
   ];
 }
 
-function SectionView({ section, keyWidth }: { section: Section; keyWidth: number }) {
+function SectionView({
+  section,
+  keyWidth,
+  first,
+}: {
+  section: Section;
+  keyWidth: number;
+  first: boolean;
+}) {
   const theme = useTheme();
   return (
-    <Box flexDirection="column" marginTop={1}>
+    <Box flexDirection="column" marginTop={first ? 0 : 1}>
       <Text color={theme.notice}>{section.title}</Text>
       {section.keys.map(([keys, label]) => (
         <Box key={keys + label}>
@@ -85,8 +100,8 @@ export function HelpOverlay({ width }: { width: number }) {
   const theme = useTheme();
   const boxWidth = Math.min(108, width - 2);
   const all = sections();
-  const left = [all[0], all[1], all[3]].filter((s): s is Section => Boolean(s));
-  const right = [all[2], all[4]].filter((s): s is Section => Boolean(s));
+  const left = [all[0], all[1], all[2]].filter((s): s is Section => Boolean(s));
+  const right = [all[3], all[4], all[5]].filter((s): s is Section => Boolean(s));
   return (
     <Box
       position="absolute"
@@ -101,20 +116,20 @@ export function HelpOverlay({ width }: { width: number }) {
     >
       <Text color={theme.accent} bold>
         {theme.retro ? `// ${t("help.title")}` : t("help.title")}
+        <Text color={theme.muted}>{`   esc / ? · ${t("key.close")}`}</Text>
       </Text>
       <Box gap={4}>
         <Box flexDirection="column" flexBasis="50%" flexShrink={1}>
-          {left.map((section) => (
-            <SectionView key={section.title} section={section} keyWidth={20} />
+          {left.map((section, i) => (
+            <SectionView key={section.title} section={section} keyWidth={20} first={i === 0} />
           ))}
         </Box>
         <Box flexDirection="column" flexBasis="50%" flexShrink={1}>
-          {right.map((section) => (
-            <SectionView key={section.title} section={section} keyWidth={10} />
+          {right.map((section, i) => (
+            <SectionView key={section.title} section={section} keyWidth={12} first={i === 0} />
           ))}
         </Box>
       </Box>
-      <Text color={theme.muted}>esc / ? · {t("key.close")}</Text>
     </Box>
   );
 }

@@ -12,35 +12,19 @@ Download music from YouTube and YouTube Music as tagged MP3, Opus or M4A files, 
 
 </div>
 
-```
- ♪ jukeboxdl   [ 1 search ] [ 2 downloads 2 ] [ 3 history ] [ 4 config ]      → /run/media/you/USB
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ » ncs alan walker                                                                            │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ // results                              20 results · up to 10 min · no live/lyrics · 2 marked │
-│ ──────────────────────────────────────────────────────────────────────────────────────────── │
-│ ❯ ◉ Alan Walker - Fade [NCS Release]                          NoCopyrightSounds    4:21      │
-│   ◉ Alan Walker - Spectre [NCS Release]                       NoCopyrightSounds    3:47      │
-│   ○ Alan Walker - Force [NCS Release]                         NoCopyrightSounds    4:02      │
-│   ○ Alan Walker - Dreamer | House | NCS             ┌────────────────────────────────────────┐│
-│   ○ Alan Walker - Sing Me to Sleep                  │ // recording              [ 1 on tape ]││
-│     ▼ 15 below                                      │ (◐)═(◐) Alan Walker - Fade             ││
-└─────────────────────────────────────────────────────│ ▃▅▂▇▄▆▂▅ ▰▰▰▰▰▰▰▱▱▱▱▱  58%  2.1 MB/s   │┘
-[enter] download · [space] mark · [p] listen · [c] chapters · [f/v] filters · [?] shortcuts
-```
+<img width="1277" height="727" alt="image" src="https://github.com/user-attachments/assets/7a9b5341-3f17-4e1f-b108-9d9d99b48968" />
+
 
 jukeboxdl is a front end for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/). You search or paste a link, pick tracks, and get files named and tagged the way you configured, with the cover embedded. It keeps a history so the same track is not downloaded twice, and it remembers an unfinished queue between sessions.
 
 ## What it does
 
 - Search YouTube with pagination and filters for length and live/lyrics/karaoke versions, or paste links to videos, playlists and YouTube Music albums.
-- Listen to a preview before downloading (needs `mpv` or `ffplay`).
+- Play your downloaded music with shuffle and repeat, browsing by album, artist or folder, and preview search results before downloading (needs `mpv` or `ffplay`).
 - Save as MP3, or as Opus/M4A when you want the original YouTube audio without re-encoding.
 - Write ID3/Vorbis/MP4 tags. Artist and title come from YouTube Music metadata when it exists, from "Artist - Title" in the video title otherwise, and missing album, year and track number can be filled in from MusicBrainz.
-- Embed the cover. Tracks from YouTube Music get a square crop of the album art; regular videos keep the 16:9 frame.
-- Measure loudness and write ReplayGain tags (R128 for Opus).
+- Embed the cover, taken from the Cover Art Archive, Deezer or iTunes when the track is found there, or from the YouTube thumbnail otherwise. Covers of tracks already downloaded can be replaced later without touching the audio.
+- Normalize the volume so every track plays at about the same level (around -14 LUFS), and write ReplayGain tags (R128 for Opus). For MP3 the adjustment happens in the same conversion; Opus and M4A get re-encoded when normalization is on.
 - Cut talking and intros with SponsorBlock, and split long mixes into one file per chapter.
 - Send a group of downloads to another folder or a USB drive without touching the default folder. Removable drives are detected with their free space.
 - Retry on network errors, check for yt-dlp updates once a day and update it from inside the app.
@@ -85,15 +69,18 @@ Recent yt-dlp versions need a JavaScript runtime to read YouTube. jukeboxdl pass
 jukeboxdl
 ```
 
-Type a search and press enter, move to the results with `↓`, mark tracks with space and press enter to download. Press `?` at any time for the full list of shortcuts.
+The screen has a sidebar on the left (library, albums, artists, folders, search, downloads, config) and a player bar at the bottom. `tab` moves the focus between the sidebar and the content, and the numbers `1` to `7` jump straight to a section. Press `?` at any time for the full list of shortcuts.
+
+The library lists the tracks in your music folder and in the destinations you used, including a USB drive. Pressing enter on a track plays it and the rest of the list after it. Playback uses `mpv` when it is installed; without it, jukeboxdl falls back to `ffplay`, where pausing and seeking restart the track at the current position.
 
 | Where | Keys |
 |---|---|
-| Anywhere | `tab` or `1` to `4` switch tabs · `/` go to search · `esc` back to search · `d` destination folder · `U` update yt-dlp · `?` help · `q` quit |
+| Anywhere | `1` to `7` sections · `tab` sidebar/content · `d` destination folder · `U` update yt-dlp · `?` help · `q` quit |
+| Player | `space` pause/resume · `>` `<` next/previous · `]` `[` forward/back 10 s · `+` `-` volume · `S` shuffle · `L` repeat |
 | Lists | `↑↓` or `j` `k` move · `pgup` `pgdn` or `ctrl+u` `ctrl+d` jump · `g` `G` first/last |
+| Library | `enter` play from here · `esc` back · `/` filter · `t`/`T` update cover (one/all) · `o` open folder · `r` download again · `e` export CSV · `R` rescan |
 | Search | `enter` download · `space` mark · `a` mark all · `p` preview · `c` split by chapters · `f` length filter · `v` hide live/lyrics |
 | Downloads | `x`/`X` cancel · `r`/`R` retry · `c` clear finished · `o` open folder |
-| History | `/` filter · `o` open folder · `r` download again · `e` export CSV · `d` remove entry |
 
 ### Commands
 
@@ -106,6 +93,7 @@ jukeboxdl search -n 5 "alan walker" --json
 jukeboxdl config set filenameTemplate "{artist}/{album|Singles}/{track:02} - {title}"
 jukeboxdl config preview "{playlist}/{index:03} {title}"
 jukeboxdl history export -f csv -o history.csv
+jukeboxdl covers update --all --source deezer        # replace covers of downloaded tracks
 jukeboxdl deps update
 jukeboxdl doctor
 ```
@@ -128,8 +116,10 @@ Settings live in `~/.config/jukeboxdl/config.json` and can be changed from the C
     "bitrate": 192,
     "embedCover": true,
     "removeNonMusic": true,
+    "normalize": true,
     "replayGain": true
   },
+  "cover": { "source": "auto" },
   "musicbrainz": true,
   "notifications": true,
   "concurrency": 3,

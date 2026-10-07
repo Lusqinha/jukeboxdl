@@ -4,6 +4,7 @@ import type { AudioFormat } from "../config/schema";
 import { DownloadError } from "../errors";
 import { t } from "../i18n/messages";
 import { runCommand } from "../process";
+import { LOUDNORM_FILTER, LOUDNORM_SAMPLE_RATE } from "../tags/loudness";
 import {
   extractError,
   PROGRESS_PREFIX,
@@ -40,6 +41,8 @@ export interface AudioDownloadOptions {
   bitrate: number;
   removeNonMusic: boolean;
   splitChapters: boolean;
+  /** Normaliza o volume na conversão (só tem efeito no mp3, que é sempre reconvertido). */
+  normalize?: boolean;
   signal?: AbortSignal | undefined;
   onProgress?: ((progress: DownloadProgress) => void) | undefined;
 }
@@ -170,7 +173,8 @@ export class YtDlp {
     workdir: string,
     options: AudioDownloadOptions,
   ): Promise<DownloadedFiles> {
-    const { format, bitrate, removeNonMusic, splitChapters, signal, onProgress } = options;
+    const { format, bitrate, removeNonMusic, splitChapters, normalize, signal, onProgress } =
+      options;
     const args = [
       ...this.baseArgs,
       "--load-info-json",
@@ -181,6 +185,12 @@ export class YtDlp {
       "--audio-format",
       format,
       ...(format === "mp3" ? ["--audio-quality", `${bitrate}K`] : []),
+      ...(format === "mp3" && normalize
+        ? [
+            "--postprocessor-args",
+            `ExtractAudio:-af ${LOUDNORM_FILTER} -ar ${LOUDNORM_SAMPLE_RATE}`,
+          ]
+        : []),
       ...(removeNonMusic ? ["--sponsorblock-remove", "music_offtopic"] : []),
       "--write-thumbnail",
       "--convert-thumbnails",
