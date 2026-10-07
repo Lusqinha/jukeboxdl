@@ -12,24 +12,7 @@ Baixe músicas do YouTube e do YouTube Music como MP3, Opus ou M4A com tags, por
 
 </div>
 
-```
- ♪ jukeboxdl   [ 1 buscar ] [ 2 downloads 2 ] [ 3 histórico ] [ 4 config ]    → /run/media/voce/PENDRIVE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ » ncs alan walker                                                                            │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ // resultados                  20 resultados · até 10 min · sem ao vivo/lyrics · 2 marcadas │
-│ ──────────────────────────────────────────────────────────────────────────────────────────── │
-│ ❯ ◉ Alan Walker - Fade [NCS Release]                          NoCopyrightSounds    4:21      │
-│   ◉ Alan Walker - Spectre [NCS Release]                       NoCopyrightSounds    3:47      │
-│   ○ Alan Walker - Force [NCS Release]                         NoCopyrightSounds    4:02      │
-│   ○ Alan Walker - Dreamer | House | NCS             ┌────────────────────────────────────────┐│
-│   ○ Alan Walker - Sing Me to Sleep                  │ // gravando               [ 1 na fita ]││
-│     ▼ 15 abaixo                                     │ (◐)═(◐) Alan Walker - Fade             ││
-└─────────────────────────────────────────────────────│ ▃▅▂▇▄▆▂▅ ▰▰▰▰▰▰▰▱▱▱▱▱  58%  2.1 MB/s   │┘
-[enter] baixar · [espaço] marcar · [p] ouvir · [c] capítulos · [f/v] filtros · [?] atalhos
-```
+<img width="1277" height="727" alt="Interface do jukeboxdl" src="https://github.com/user-attachments/assets/7a9b5341-3f17-4e1f-b108-9d9d99b48968" />
 
 O jukeboxdl é uma interface para o [yt-dlp](https://github.com/yt-dlp/yt-dlp) e o [ffmpeg](https://ffmpeg.org/). Você busca ou cola um link, escolhe as faixas e recebe os arquivos com o nome e as tags que configurou, com a capa embutida. Ele guarda um histórico para não baixar a mesma faixa duas vezes e lembra a fila que ficou pela metade entre uma sessão e outra.
 
