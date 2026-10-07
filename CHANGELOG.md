@@ -1,21 +1,23 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] - 2026-10-07
 
 ### Player and navigation
 
-- Music player for the tracks you downloaded: pause, seek, volume, shuffle and repeat, with a player bar always visible at the bottom. It uses `mpv` when installed and falls back to `ffplay`.
-- New layout with a sidebar: library, albums, artists, folders, search, downloads and config. `tab` switches the focus and `1` to `7` jump to a section.
-- The library reads your music folder and the destinations you used (USB drives included), caches the tags in SQLite and can be grouped by album, artist or folder. It replaces the history tab; covers, re-download and export moved there.
+- jukeboxdl now plays the music it downloaded. The player bar stays at the bottom of the screen: space pauses, `<` and `>` change tracks, `[` and `]` seek 10 seconds, `-` and `+` change the volume, `S` turns shuffle on and `L` cycles repeat.
+- Playback uses mpv when it is installed. Without it, jukeboxdl uses ffplay, which has no remote control, so pausing, seeking and changing the volume restart the track at the current position. The mpv engine follows mpv's IPC documentation but has not been run on a real machine yet.
+- The screen now has a sidebar with library, albums, artists, folders, search, downloads and config. `tab` moves the focus between the sidebar and the content, and `1` to `7` jump to a section.
+- The library reads the default music folder and every destination you used before, USB drives included. Tags are cached in SQLite, so the next scan only reads new or changed files.
+- The library replaces the history tab. Cover updates, downloading again and CSV export moved there.
 
 ### Covers
 
-- New `cover.source` setting. `auto` (the default) tries the Cover Art Archive through MusicBrainz, then Deezer, and falls back to the YouTube thumbnail. You can also pick `musicbrainz`, `deezer`, `itunes` or `youtube`. A result is used only when its title and artist match the track.
-- Covers of tracks you already downloaded can be replaced: `jukeboxdl covers update <files>` or `--all` for the whole history, and `t`/`T` in the History tab. Audio and tags stay as they were.
+- New `cover.source` setting. With `auto`, the default, jukeboxdl tries the Cover Art Archive through MusicBrainz, then Deezer, and uses the YouTube thumbnail when neither has the track. `musicbrainz`, `deezer`, `itunes` and `youtube` limit it to one source. A cover is used only when its title and artist match the track.
+- Covers of tracks already on disk can be replaced without touching the audio or the tags: `jukeboxdl covers update <files>`, `--all` for the whole history, or `t` and `T` in the library.
 
 ### Downloads
 
-- Volume normalization, on by default: every track is adjusted to about -14 LUFS with a -1.5 dBTP peak ceiling. MP3 files get it during the single conversion yt-dlp already does. Opus and M4A files have to be re-encoded for this, so turn `audio.normalize` off if you prefer the original stream untouched.
+- Volume normalization is on by default and brings every track to about -14 LUFS, with peaks kept under -1.5 dBTP. MP3 files get it in the conversion yt-dlp already does. Opus and M4A files have to be re-encoded for it; turn `audio.normalize` off to keep the original stream.
 
 ## [0.1.1] - 2026-10-07
 
