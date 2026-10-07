@@ -30,6 +30,15 @@ jobs:
           name="${name/bun-/}"
           [[ "${{ matrix.target }}" == *windows* ]] && name="$name.exe"
           bun scripts/build-binary.ts ${{ matrix.target }} "dist/$name"
+      - name: Testar o binário sem node_modules (só linux-x64, que roda neste runner)
+        if: matrix.target == 'bun-linux-x64'
+        run: |
+          # Sem o node_modules, o binário só funciona se tudo estiver embutido nele.
+          mv node_modules "$RUNNER_TEMP/node_modules"
+          export JUKEBOXDL_HOME="$(mktemp -d)"
+          ./dist/jukeboxdl-linux-x64 --version
+          ./dist/jukeboxdl-linux-x64 history -n 1
+          mv "$RUNNER_TEMP/node_modules" node_modules
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}

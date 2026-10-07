@@ -1,6 +1,6 @@
 {
   "name": "jukeboxdl",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Baixe músicas do YouTube como MP3 pelo terminal",
   "type": "module",
   "bin": {
