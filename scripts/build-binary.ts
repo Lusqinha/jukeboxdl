@@ -34,14 +34,18 @@ const PLATFORM_FILES: Record<string, string> = {
   "bun-darwin-arm64": "darwin-arm64",
   "bun-windows-x64": "win32-x64",
 };
-const sqliteDir = dirname(Bun.resolveSync("better-sqlite3/package.json", join(import.meta.dir, "../packages/core")));
+const sqliteDir = dirname(
+  Bun.resolveSync("better-sqlite3/package.json", join(import.meta.dir, "../packages/core")),
+);
 const sqlitePlatform = PLATFORM_FILES[target];
 if (!sqlitePlatform) throw new Error(`Alvo sem binário do better-sqlite3: ${target}`);
 
 const pinSqlite: BunPlugin = {
   name: "pin-better-sqlite3",
   setup(build) {
-    build.onResolve({ filter: /^better-sqlite3$/ }, () => ({ path: join(sqliteDir, "lib", `${sqlitePlatform}.js`) }));
+    build.onResolve({ filter: /^better-sqlite3$/ }, () => ({
+      path: join(sqliteDir, "lib", `${sqlitePlatform}.js`),
+    }));
   },
 };
 
