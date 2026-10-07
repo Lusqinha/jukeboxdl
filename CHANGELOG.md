@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2026-10-07
+
+### Fixed
+
+- The standalone binaries crashed on any command that opens the history (downloads and the interface) with "Cannot find module ... better_sqlite3.node". The SQLite native module is now embedded in each binary, and the release pipeline runs the Linux binary without `node_modules` before publishing.
+
 ## [0.1.0] - 2026-10-06
 
 First public release.
